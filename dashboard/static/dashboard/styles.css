@@ -1,0 +1,29 @@
+body {
+    background-color: red !important; /* Temporary test */
+}
+
+/* General container width */
+.responsive-container {
+    width: 100%;
+    max-width: 1200px; /* to limit width on larger screens*/
+    margin: auto;   
+}
+
+/* Adjustments for different screen sizes*/
+@media (max-width: 1024px) { /* Tablets*/
+    .responsive-container {
+        width: 95%;
+    }
+    .dash-graph {
+        height: 70vh; /* Adjust height for tablets*/
+    }
+}
+
+@media (max-width: 768px) {
+    .responsive-container {
+        width: 100%; 
+    }
+    .dash-graph {
+        height: 50vh; /* Reduces height on mobile*/
+    }
+}
