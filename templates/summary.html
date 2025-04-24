@@ -1,0 +1,12 @@
+{% extends "base.html" %}
+{% load static %} 
+{% load plotly_dash %}
+
+{% block title %}Station{% endblock title %}
+
+{% block body %}
+<div class="{% plotly_class name="Summary"%}">
+    {% plotly_direct name="Summary" %}
+</div>
+
+{% endblock %}
