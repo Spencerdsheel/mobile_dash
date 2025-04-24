@@ -11,7 +11,9 @@ https://docs.djangoproject.com/en/5.1/ref/settings/
 """
 
 from pathlib import Path
+from dotenv import load_dotenv
 import os
+load_dotenv()
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -39,10 +41,13 @@ INSTALLED_APPS = [
     'django.contrib.messages',
     'django.contrib.staticfiles',
     'django_plotly_dash.apps.DjangoPlotlyDashConfig',
-    'dashboard',
+    'dashboard.apps.DashboardConfig',
     'django_bootstrap5',
     'channels',
-    'dpd_static_support'
+    'channels_redis',
+    'dpd_static_support',
+    'celery',
+    'django_celery_beat',
 ]
 
 MIDDLEWARE = [
@@ -87,6 +92,15 @@ WSGI_APPLICATION = 'interactive_dashboard.wsgi.application'
 # https://docs.djangoproject.com/en/5.1/ref/settings/#databases
 
 DATABASES = {
+    'dashboard':{
+        'ENGINE': 'django.db.backends.postgresql',
+        'NAME': os.getenv('DB_NAME'),
+        'USER': os.getenv('DB_USER'),
+        'PASSWORD':os.getenv('DB_PASSWORD'),
+        'HOST':os.getenv('DB_HOST'),
+        'PORT':os.getenv('DB_PORT'),
+    },
+
     'default': {
         'ENGINE': 'django.db.backends.sqlite3',
         'NAME': BASE_DIR / 'db.sqlite3',
@@ -128,7 +142,7 @@ USE_TZ = True
 # Static files (CSS, JavaScript, Images)
 # https://docs.djangoproject.com/en/5.1/howto/static-files/
 
-STATIC_URL = 'static/'
+STATIC_URL = 'assets'
 
 X_FRAME_OPTIONS = 'SAMEORIGIN'    #Manually added
 
@@ -139,11 +153,25 @@ DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
 
 
-# Added manually
+# Added manually----------------------------------------------------------------------------------------------------------
+
+CRISPY_TEMPLATE_PACK = 'bootstrap5'
+
+ASGI_APPLICATION = 'interactive_dashboard.routing.application'
+
+CHANNEL_LAYERS = {
+    'default': {
+        'BACKEND': 'channels_redis.core.RedisChannelLayer',
+        'CONFIG': {
+            'hosts': [('127.0.0.1', 6379),],
+        },
+    },
+}
+
 STATIC_ROOT = os.path.join(BASE_DIR, "staticfiles")
 
 STATICFILES_DIRS = [
-    BASE_DIR / "static"
+    BASE_DIR / "assets",
 ]
 
 # Staticfiles finders for locating dash app assets and related files
@@ -172,6 +200,9 @@ PLOTLY_COMPONENTS = [
 
     # Other components, as needed
     'dash_bootstrap_components',
+
+    'dash_core_components',
+    'dash_html_components',
 ]
 
 add_bootstrap_links=True
@@ -203,3 +234,42 @@ PLOTLY_DASH = {
     # Flag controlling local serving of assets
     "serve_locally": False,
 }
+
+# REDIS_PASSWORD = os.getenv('REDIS_PASSWORD')
+# REDIS_HOST = os.getenv('REDIS_HOST')
+# REDIS_PORT = os.getenv('REDIS_PORT')
+# REDIS_DB = os.getenv('REDIS_DB')
+
+CACHES = {
+    "default": {
+        "BACKEND":"django_redis.cache.RedisCache",
+        "LOCATION":"redis://127.0.0.1:6379/1",
+        "OPTIONS":{
+            "CLEINT_CLASS":"django_redis.client.DefaultClient",
+        }
+    } 
+}
+
+# Celery settings
+#set the broker url
+CELERY_BROKER_URL = 'redis://localhost:6379/1'
+
+#set the result backend
+CELERY_RESULT_BACKEND = 'redis://localhost:6379/1'
+
+#set the celery beat scheduler
+#CELERY_BEAT_SCHEDULER = 'django_celery_beat.schedulers:DatabaseScheduler'
+
+
+#Securtiy
+#CSRF_TRUSTED_ORIGINS = ['http://localhost:8000']
+
+#Secure_SSL_REDIRECT = True
+#SESSION_COOKIE_SECURE = True
+#CSRF_COOKIE_SECURE = True
+
+
+#SECURE_HSTS_SECONDS = 3600
+#SECURE_HSTS_INCLUDE_SUBDOMAINS = True     #CHECK FIRST SUGGESTED BY
+#SECURE_HSTS_PRELOAD = True
+
