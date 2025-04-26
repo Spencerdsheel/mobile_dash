@@ -142,7 +142,7 @@ USE_TZ = True
 # Static files (CSS, JavaScript, Images)
 # https://docs.djangoproject.com/en/5.1/howto/static-files/
 
-STATIC_URL = 'assets'
+STATIC_URL = '/assets/'
 
 X_FRAME_OPTIONS = 'SAMEORIGIN'    #Manually added
 
@@ -171,7 +171,7 @@ CHANNEL_LAYERS = {
 STATIC_ROOT = os.path.join(BASE_DIR, "staticfiles")
 
 STATICFILES_DIRS = [
-    BASE_DIR / "assets",
+    BASE_DIR / "dashboard/assets",
 ]
 
 # Staticfiles finders for locating dash app assets and related files

@@ -32,7 +32,7 @@ LOGO=""
 # Offcanvas component
 offcanvas = dbc.Offcanvas(
     [
-        html.P("Offcanvas content goes here..."),
+        html.P("Ticket Booking Dashboard"),
         dbc.Nav(
             [
                 dbc.NavLink("Home", href="/", active="exact"),
@@ -48,6 +48,7 @@ offcanvas = dbc.Offcanvas(
     title="Menu",
     is_open=False,
     placement="start",
+    scrollable=True,
 )
 
 # Navbar with optional Collapse wrapping the toggle button
@@ -80,11 +81,13 @@ navbar = dbc.Navbar(
                         html.A(
                             dbc.NavbarBrand("Logout", className="ms-2"),
                             href="/logout",
-                        )
-                    )
+                        ),
+                        width="auto",
+                        className="ms-auto"
+                    ),
                 ],
                 align="center",
-                className="g-0",
+                className="g-0 w-100",
             ),
         ],
         fluid=True,  # removes container's side spacing
@@ -116,32 +119,31 @@ dashboard_app = DjangoDash('Dashboard', external_stylesheets=[dbc.themes.BOOTSTR
                  add_bootstrap_links=True)
 
 
-dashboard_app.layout = dbc.Container(
+dashboard_app.layout = html.Div(
     dcc.Loading(
         id="loading",
         type="default",
         fullscreen=True,
         children=[
-            #dcc.Interval(id='initial-load', interval=500, max_intervals=1),  # triggers once on load
-            #dcc.Interval(id='auto-refresh', interval=300000, n_intervals=0),  # triggers every 5 minutes
             navbar,
             offcanvas,
-            # Top Navigation Header 
-            dbc.Row([
+            dbc.Container(fluid=True, children=[
+                dbc.Row([
                 #Logo Column
                 dbc.Col(
-                    html.Img(src="assets/GSDS_Logo.jpg", height="40px"),  # Adjust height as needed
+                    html.Img(src="assets/NRC_Logo.png", height="100px"),  # Adjust height as needed
                     width="auto", className="p-3"
                 ),
                 dbc.Col(dcc.Checklist(options=[{"label": " Today", "value": "today"}], value=["today"], id="date-filter"), 
                         width=1, xs=2, sm=2, md=2, lg=1, xl=1, xxl=1, className="p-3 mt-2"),  #, className="mb-2"
                 dbc.Col(dcc.DatePickerRange(
                     id='date-picker',
+                    className="rounded",
                     start_date="10-11-23",  #df['booking_date'].min()
                     end_date="21-04-25",  #df['booking_date'].max()
-                    display_format='DD/MM/YYYY'
-                ), width=4, xs=12, sm=12, md=3, lg=4, className="p-3 rounded"),  #, className="p-2"
-            ]),
+                    display_format='DD/MM/YYYY',
+                ), xs=12, sm=12, md=3, lg=4, className="p-3 rounded"),  #, className="p-2"
+            ], align="center"),
             dbc.Row([
                 dbc.Col(dcc.Dropdown(
                     id="boarding-station",
@@ -249,7 +251,6 @@ dashboard_app.layout = dbc.Container(
             dbc.Row([
                 dbc.Col(html.H4("Summary Table", className="bg-success text-white text-center rounded m-0"), width=12)
             ]),
-
             dbc.Row([
                 dbc.Col(dash_table.DataTable(
                     id='summary-table',
@@ -290,12 +291,13 @@ dashboard_app.layout = dbc.Container(
                     filter_action='native',
                     sort_action='native',
                     fixed_rows={'headers': True},
-                ), width=12, className="shadow rounded border mb-5")
+                ), width=12, className="shadow rounded border mb-3")
+            ]),
             ]),
             footer,
-            dcc.Location(id="url", refresh=False),
         ]
-    ), fluid=True, className="bg-white")
+    )
+)
 
 
 @dashboard_app.callback(
@@ -444,20 +446,20 @@ def update_dashboard(date_filter, start_date, end_date, station, route,  coach, 
         updated_fig1 = px.line(daily_transaction_dff, x="booking_date", y="total_fare",
                                 labels={"value": "Total Sales", "booking_date": "Date"}, title="Total Sales by Date")
         
-        summary_dff = dff.groupby('booking_from').agg({
-        'total_fare': 'sum',
-        'medical': 'sum',
-        'insurance':'sum',
-        'stamp_duty': 'sum',
-        'total_tkt_revenue': 'sum',
-        'total_cov_fee': 'sum',
-        'nrc_cov_fee':'sum',
-        'nrc_tkt_rev':'sum',
-        'gsd_tkt_rev':'sum',
-        'gsd_cov_fee':'sum',
-        'icrc_tkt_rev':'sum', 
-        'no_of_passengers':'count'
-        }).reset_index()
+        summary_dff = dff.groupby('booking_from').agg(
+        total_fare=('total_fare', 'sum'),
+        medical=('medical', 'sum'),
+        insurance=('insurance', 'sum'),
+        stamp_duty=('stamp_duty', 'sum'),
+        total_tkt_revenue=('total_tkt_revenue', 'sum'),
+        total_cov_fee=('total_cov_fee', 'sum'),
+        nrc_cov_fee=('nrc_cov_fee', 'sum'),
+        nrc_tkt_rev=('nrc_tkt_rev', 'sum'),
+        gsd_tkt_rev=('gsd_tkt_rev', 'sum'),
+        gsd_cov_fee=('gsd_cov_fee', 'sum'),
+        icrc_tkt_rev=('icrc_tkt_rev', 'sum'),
+        no_of_passengers=('no_of_passengers', 'count')
+        ).reset_index()
 
         updated_table = summary_dff.to_dict('records')
 
