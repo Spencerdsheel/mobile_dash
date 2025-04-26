@@ -461,6 +461,12 @@ def update_dashboard(date_filter, start_date, end_date, station, route,  coach, 
         no_of_passengers=('no_of_passengers', 'count')
         ).reset_index()
 
+        total_row = (
+        pd.DataFrame([summary_dff.drop(columns=['booking_from']).sum()], columns=summary_dff.columns)
+        .assign(booking_from='Total')
+        )
+        summary_dff = pd.concat([summary_dff, total_row], ignore_index=True)
+
         updated_table = summary_dff.to_dict('records')
 
         return kpi_tickets, kpi_transactions, validated_tickets, total_sales, online_sales, tom_sales, nrc_rev, updated_fig1, updated_table
