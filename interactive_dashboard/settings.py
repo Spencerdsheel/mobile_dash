@@ -250,6 +250,11 @@ CACHES = {
     } 
 }
 
+#"REDIS_PASSWORD": REDIS_PASSWORD,
+#"SOCKET_CONNECT_TIMEOUT": 5,
+#"SOCKET_TIMEOUT": 5,
+#"IGNORE_EXCEPTIONS": True,
+
 # Celery settings
 #set the broker url
 CELERY_BROKER_URL = 'redis://localhost:6379/1'

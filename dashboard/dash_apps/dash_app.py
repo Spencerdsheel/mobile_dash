@@ -1,11 +1,10 @@
 import os
 import time
 from dash import html, dcc, callback, Output, Input, dash_table, State
-#import dash_ag_grid as dag
 from dash import dash_table
 from django_plotly_dash import DjangoDash
 import dash_bootstrap_components as dbc
-from dashboard.utils import get_cached_dashboard_data, get_booking_data
+from dashboard.utils import get_cached_dashboard_data, get_booking_data, get_validator_data
 import pandas as pd
 import numpy as np
 import plotly.express as px
@@ -27,7 +26,6 @@ import logging
 logging.basicConfig(level=logging.DEBUG)
 logger = logging.getLogger(__name__)
 
-LOGO=""
 
 # Offcanvas component
 offcanvas = dbc.Offcanvas(
@@ -106,12 +104,17 @@ footer = dbc.Container(
             html.Small("Copyright © 2025 Ticket Booking System",
                        className="text-center text-white"),
             width=12
-        )
+        ),
+        # dbc.Col(
+        #             html.Img(src="assets/GSDS_Logo.png", height="40px"),  # Adjust height as needed
+        #             width="auto", className="p-3"
+        # )
     ),
     fluid=True,
     className="bg-success py-3 mt-auto"
 )
 
+end_date = datetime.today().date()
 
 #Initialize the Dash app
 dashboard_app = DjangoDash('Dashboard', external_stylesheets=[dbc.themes.BOOTSTRAP, dbc.icons.BOOTSTRAP],
@@ -119,15 +122,10 @@ dashboard_app = DjangoDash('Dashboard', external_stylesheets=[dbc.themes.BOOTSTR
                  add_bootstrap_links=True)
 
 
-dashboard_app.layout = html.Div(
-    dcc.Loading(
-        id="loading",
-        type="default",
-        fullscreen=True,
-        children=[
+dashboard_app.layout = html.Div([
             navbar,
             offcanvas,
-            dbc.Container(fluid=True, children=[
+            dbc.Container([
                 dbc.Row([
                 #Logo Column
                 dbc.Col(
@@ -139,8 +137,8 @@ dashboard_app.layout = html.Div(
                 dbc.Col(dcc.DatePickerRange(
                     id='date-picker',
                     className="rounded",
-                    start_date="10-11-23",  #df['booking_date'].min()
-                    end_date="21-04-25",  #df['booking_date'].max()
+                    start_date="10-11-2023",  #df['booking_date'].min()
+                    end_date=end_date,  #df['booking_date'].max()
                     display_format='DD/MM/YYYY',
                 ), xs=12, sm=12, md=3, lg=4, className="p-3 rounded"),  #, className="p-2"
             ], align="center"),
@@ -165,14 +163,8 @@ dashboard_app.layout = html.Div(
                 dbc.Col(dcc.Dropdown(
                     id="route-name",   #'Lagos-Ibadan', 'Ibadan-Lagos', 'KAJOLA-APAPA','APAPA-KAJOLA', 'LAGOS-IBADAN_LITS', 'KAJOLA-APAPA_BAT','Lagos-Ibadan_Afternoon', 'Ibadan-Lagos_Afternoon'
                     options=[
-                        {"label": "LITS", "value": "Lagos-Ibadan"},
-                        {"label": "LITS", "value": "Ibadan-Lagos"},
-                        {"label": "LITS", "value": "LAGOS-IBADAN_LITS"},
-                        {"label": "LITS", "value": "Lagos-Ibadan_Afternoon"},
-                        {"label": "LITS", "value": "Ibadan-Lagos_Afternoon"},
-                        {"label": "BAT", "value": "APAPA-KAJOLA"},
-                        {"label": "BAT", "value": "KAJOLA-APAPA"},
-                        {"label": "BAT", "value": "KAJOLA-APAPA_BAT"},
+                        {"label": "LITS", "value": "LITS"},
+                        {"label": "BAT", "value": "BAT"},
                     ],
                     value=None,
                     placeholder="Route Name", 
@@ -195,7 +187,7 @@ dashboard_app.layout = html.Div(
                         xs=6, sm=6, md=2, className="p-3"),
                 dbc.Col(dbc.Button("Clear", id="clear-filters", color="success", className="w-100"), 
                         xs=12, sm=12, md=1, className="p-3"),
-            ], className="bg-white shadow rounded"),
+            ], justify="center", className="bg-white shadow rounded"),
 
             # KPI Indicators
             dbc.Row([
@@ -249,56 +241,55 @@ dashboard_app.layout = html.Div(
             
             # html.Br(),
             dbc.Row([
-                dbc.Col(html.H4("Summary Table", className="bg-success text-white text-center rounded m-0"), width=12)
+                dbc.Col([
+                    html.Div([
+                        html.H4("Summary Table", className="bg-success text-white text-center rounded m-0 mb-2"),
+                        dash_table.DataTable(
+                            id='summary-table',
+                            columns=[
+                                {'id': 'booking_from', 'name': 'Station', 'type': 'text'},
+                                {'id': 'total_fare', 'name': 'Ticket Sales', 'type': 'numeric'},
+                                {'id': 'medical', 'name': 'Medical', 'type': 'numeric'},
+                                {'id': 'insurance', 'name': 'Insurance', 'type': 'numeric'},
+                                {'id': 'stamp_duty', 'name': 'Stamp Duty', 'type': 'numeric'},
+                                {'id': 'total_tkt_revenue', 'name': 'Total Ticket Revenue', 'type': 'numeric'},
+                                {'id': 'total_cov_fee', 'name': 'Total Coverage Fee', 'type': 'numeric'},
+                                {'id': 'nrc_cov_fee', 'name': 'NRC Coverage Fee', 'type': 'numeric'},
+                                {'id': 'nrc_tkt_rev', 'name': 'NRC Ticket Revenue', 'type': 'numeric'},
+                                {'id': 'gsd_tkt_rev', 'name': 'GSD Ticket Revenue', 'type': 'numeric'},
+                                {'id': 'gsd_cov_fee', 'name': 'GSD Coverage Fee', 'type': 'numeric'},
+                                {'id': 'icrc_tkt_rev', 'name': 'ICRC Ticket Revenue', 'type': 'numeric'},
+                                {'id': 'no_of_passengers', 'name': 'No of Passengers', 'type': 'numeric'},
+                            ],
+                            style_table={'overflowX': 'auto', 'overflowY': 'scroll'},
+                            style_header={
+                                'backgroundColor': 'rgb(230, 230, 230)',
+                                'fontWeight': 'bold',
+                                'textAlign': 'center',
+                            },
+                            style_cell={
+                                'padding': '10px',
+                                'border': '1px solid #ddd',
+                                'fontFamily': 'Arial, sans-serif',
+                                'minWidth': '150px', 'width': '150px', 'maxWidth': '150px',
+                            },
+                            style_cell_conditional=[
+                                {
+                                    'if': {'column_id': 'booking_from'},
+                                    'textAlign': 'left',
+                                    'minWidth': '270px', 'width': '270px', 'maxWidth': '270px'
+                                }
+                            ],
+                            filter_action='native',
+                            sort_action='native',
+                            fixed_rows={'headers': True},
+                        )
+                    ]) #, className="p-2"
+                ], className="shadow rounded border mb-3 p-2", xs=12, lg=12)
             ]),
-            dbc.Row([
-                dbc.Col(dash_table.DataTable(
-                    id='summary-table',
-                    columns=[
-                        {'id': 'booking_from', 'name': 'Station', 'type': 'text'},
-                        {'id': 'total_fare', 'name': 'Ticket Sales', 'type': 'numeric'},
-                        {'id': 'medical', 'name': 'Medical', 'type': 'numeric'},
-                        {'id': 'insurance', 'name': 'Insurance', 'type': 'numeric'},
-                        {'id': 'stamp_duty', 'name': 'Stamp Duty', 'type': 'numeric'},
-                        {'id': 'total_tkt_revenue', 'name': 'Total Ticket Revenue', 'type': 'numeric'},
-                        {'id': 'total_cov_fee', 'name': 'Total Coverage Fee', 'type': 'numeric'},
-                        {'id': 'nrc_cov_fee', 'name': 'NRC Coverage Fee', 'type': 'numeric'},
-                        {'id': 'nrc_tkt_rev', 'name': 'NRC Ticket Revenue', 'type': 'numeric'},
-                        {'id': 'gsd_tkt_rev', 'name': 'GSD Ticket Revenue', 'type': 'numeric'},
-                        {'id': 'gsd_cov_fee', 'name': 'GSD Coverage Fee', 'type': 'numeric'},
-                        {'id': 'icrc_tkt_rev', 'name': 'ICRC Ticket Revenue', 'type': 'numeric'},
-                        {'id': 'no_of_passengers', 'name': 'No of Passengers', 'type': 'numeric'},
-                    ],
-                    style_table={'overflowX': 'auto', 'overflowY': 'scroll'},
-                    style_header={
-                        'backgroundColor': 'rgb(230, 230, 230)',
-                        'fontWeight': 'bold',
-                        'textAlign': 'center',
-                    },
-                    style_cell={
-                        'padding': '10px',
-                        'border': '1px solid #ddd',
-                        'fontFamily': 'Arial, sans-serif',
-                        'minWidth': '150px', 'width': '150px', 'maxWidth': '150px',
-                    },
-                    style_cell_conditional=[
-                        {
-                            'if': {'column_id': 'booking_from'},
-                            'textAlign': 'left',
-                            'minWidth': '270px', 'width': '270px', 'maxWidth': '270px'
-                        }
-                    ],
-                    filter_action='native',
-                    sort_action='native',
-                    fixed_rows={'headers': True},
-                ), width=12, className="shadow rounded border mb-3")
-            ]),
-            ]),
+        ], fluid=True),
             footer,
-        ]
-    )
-)
-
+])
 
 @dashboard_app.callback(
     Output("offcanvas", "is_open"),  
@@ -334,17 +325,19 @@ def toggle_offcanvas(n1, is_open):
     Input("coach-type", "value"),
     Input("user-name", "value"),
     Input("pnr-number", "value"),
-    #Input("clear-filters", "n_clicks"),
+    Input("clear-filters", "n_clicks"),
 )
 
 
-def update_dashboard(date_filter, start_date, end_date, station, route,  coach, username, pnr):  #clear_clicks
+def update_dashboard(date_filter, start_date, end_date, station, route,  coach, username, pnr, clear_clicks):
     try:
         booking_data = get_booking_data()
         dff = pd.DataFrame(booking_data)
+        validator_data = get_validator_data()
+        validator_dff = pd.DataFrame(validator_data)
+
         dff.head()
         print("The length of the dataframe is:", len(dff))
-
         print(f"Today date:{date_filter} (Type: {type(date_filter)})")
         print(f"Start Date:{start_date} (Type: {type(start_date)})")
         print(f"End Date:{end_date} (Type: {type(end_date)})")
@@ -363,22 +356,40 @@ def update_dashboard(date_filter, start_date, end_date, station, route,  coach, 
 
         # Convert 'booking_date' to native date
         dff["booking_date"] = pd.to_datetime(dff["booking_date"]).dt.date
+        validator_dff["created_at"] = pd.to_datetime(validator_dff["created_at"]).dt.date
 
         if "today" in date_filter:
             today_date = datetime.today().date()
             print(today_date)
             dff = dff[dff["booking_date"] == today_date]
+            validator_dff = validator_dff[validator_dff["created_at"] == today_date]
         else:
             # Filter the dataframe
             dff = dff[(dff["booking_date"] >= start_date) & (dff["booking_date"] <= end_date)]
-
+            validator_dff = validator_dff[(validator_dff["created_at"] >= start_date) & (validator_dff["created_at"] <= end_date)]
         print(f"[INFO] DataFrame now has {len(dff)} records after date filtering.")
 
         #Filter by boarding station
         if station:
             dff = dff[dff["booking_from"] == station]
+            
         print(type(station))
         print(f"[INFO] Filtered by Station: {station}. Remaining records: {len(dff)}")
+
+        #filter by route name
+        conditions = [
+            dff['route_name'].isin(["Lagos-Ibadan", "Ibadan-Lagos", "LAGOS-IBADAN_LITS", "Lagos-Ibadan_Afternoon", "Ibadan-Lagos_Afternoon"]),
+            dff['route_name'].isin(["APAPA-KAJOLA", "KAJOLA-APAPA", "KAJOLA-APAPA_BAT"]),
+        ]
+        choices = ["LITS", "BAT"]
+        dff['filtered_route'] = np.select(conditions, choices, default="Other")
+        print(dff['filtered_route'].unique())
+        print(dff['route_name'].unique())
+        
+        if route:
+            dff = dff[dff["filtered_route"] == route]
+        print(type(route))
+        print(f"[INFO] Filtered by Route Name: {route}. Remaining records: {len(dff)}")
 
         #filter by coach type
         if coach:
@@ -398,26 +409,25 @@ def update_dashboard(date_filter, start_date, end_date, station, route,  coach, 
         print(type(pnr))
         print(f"[INFO] Filtered by PNR: {pnr}. Remaining records: {len(dff)}")
 
-        # #clear all filters
-        # if clear_clicks:
-        #     date_filter = None
-        #     start_date = None
-        #     end_date = None
-        #     station = None
-        #     route = None
-        #     coach = None 
-        #     username = None
-        #     pnr = None
+        #clear all filters
+        clear_start_date = "10-11-2023"
+        clear_end_date = datetime.today().date()
+        if clear_clicks:
+            start_date = clear_start_date
+            end_date = clear_end_date
+            username = None
+            pnr = None
 
         # Debugging final dataset before visualization
         print(f"\n===== DEBUG: Final Filtered DataFrame =====")
         print(dff)  # Show first few rows of the final DataFrame
         print(f"[INFO] Final DataFrame contains {len(dff)} rows.")
+        print(f"The length of the validator dataframe is: {len(validator_dff)}")
 
         #update the Kpi indicators
         tickets_value = dff['no_of_passengers'].sum()
         transactions_value = len(dff)
-        validated_ticket_value = 7238723   #len(validator_dff)
+        validated_ticket_value = len(validator_dff)
         online_value = dff[dff['type']=='ONLINE']['total_fare'].sum()
         tom_value = dff[dff['type']=='OFFLINE']['total_fare'].sum()
         total_sales_value = dff["total_fare"].sum()
@@ -446,6 +456,7 @@ def update_dashboard(date_filter, start_date, end_date, station, route,  coach, 
         updated_fig1 = px.line(daily_transaction_dff, x="booking_date", y="total_fare",
                                 labels={"value": "Total Sales", "booking_date": "Date"}, title="Total Sales by Date")
         
+        #updating the table
         summary_dff = dff.groupby('booking_from').agg(
         total_fare=('total_fare', 'sum'),
         medical=('medical', 'sum'),
@@ -473,19 +484,16 @@ def update_dashboard(date_filter, start_date, end_date, station, route,  coach, 
     except Exception as e:
         print("Callback Error:", e)
         return "Err", "Err", "Err", "Err", "Err", "Err", "Err", {}, []
+    
 # #Callback to clear all filters
 # @dashboard_app.callback(
-#     Output("date-filter", "value"),
 #     Output("date-picker", "start_date"),
 #     Output("date-picker", "end_date"),
-#     Output("boarding-station", "value"),
-#     Output("route-name", "value"),
-#     Output("coach-type", "value"),
 #     Output("user-name", "value"),
 #     Output("pnr-number", "value"),
 #     Input("clear-filters", "n_clicks")
 # )
 # def clear_filters(n_clicks):
-#     return None, None, None, None, None, None, None, None
+#     return start_date, None, None, None, None
 
 

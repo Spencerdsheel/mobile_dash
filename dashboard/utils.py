@@ -2,6 +2,8 @@ import os
 import math
 import logging
 import pandas as pd
+import orjson
+import lz4.frame
 import psycopg2
 from django.core.cache import cache
 
@@ -11,24 +13,47 @@ logger = logging.getLogger(__name__)
 
 # -------------------- Chunking Logic --------------------
 def chunk_and_cache_df(df, key_prefix, chunk_size=10000):
+    # Convert all datetime columns to ISO strings
+    for col in df.select_dtypes(include=["datetime64[ns]", "datetime64[ns, UTC]", "object"]):
+        if pd.api.types.is_datetime64_any_dtype(df[col]):
+            df[col] = df[col].astype(str)
+
     records = df.to_dict(orient='records')
     total_records = len(records)
     num_chunks = math.ceil(total_records / chunk_size)
 
     for i in range(num_chunks):
         chunk = records[i * chunk_size : (i + 1) * chunk_size]
-        cache.set(f"{key_prefix}_chunk_{i}", chunk, timeout=None)
+
+        try:
+            json_bytes = orjson.dumps(chunk)
+            compressed = lz4.frame.compress(json_bytes)
+            cache.set(f"{key_prefix}_chunk_{i}", compressed, timeout=None)
+        except Exception as e:
+            logger.error(f"Chunk {i} failed to compress/save: {e}")
 
     cache.set(f"{key_prefix}_chunk_count", num_chunks, timeout=None)
     logger.debug(f"Stored {key_prefix} in {num_chunks} chunks.")
 
 def read_all_chunks(key_prefix):
     chunks = []
-    chunk_count = cache.get(f"{key_prefix}_chunk_count") or 0
+    chunk_count = cache.get(f"{key_prefix}_chunk_count")
+
+    if isinstance(chunk_count, bytes):
+        chunk_count = int(chunk_count.decode())
+    
+    chunk_count = chunk_count or 0
     for i in range(chunk_count):
-        chunk = cache.get(f"{key_prefix}_chunk_{i}")
-        if chunk:
-            chunks.extend(chunk)
+        compressed = cache.get(f"{key_prefix}_chunk_{i}")
+        if compressed:
+            try:
+                json_bytes = lz4.frame.decompress(compressed)
+                chunk = orjson.loads(json_bytes)
+                chunks.extend(chunk)
+            except Exception as e:
+                logger.error(f"Failed to load chunk {key_prefix}_chunk_{i}: {e}")
+        else:
+            logger.warning(f"Missing chunk {key_prefix}_chunk_{i}")
     return chunks
 
 def get_booking_data():
