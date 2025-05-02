@@ -1,4 +1,5 @@
 import os
+import dash
 from dash import html, dcc, callback, Output, Input, dash_table, State
 from django_plotly_dash import DjangoDash
 import dash_bootstrap_components as dbc
@@ -31,9 +32,9 @@ offcanvas = dbc.Offcanvas(
         dbc.Nav(
             [
                 dbc.NavLink("Home", href="/", active="exact"),
-                dbc.NavLink("Station", href="station/", active="exact"),
-                dbc.NavLink("User", href="user/", active="exact"),
-                dbc.NavLink("Summary", href="summary/", active="exact"),
+                dbc.NavLink("Station", href="/station", active="exact"),
+                dbc.NavLink("User", href="/user", active="exact"),
+                dbc.NavLink("Summary", href="/summary", active="exact"),
             ],
             vertical=True,
             pills=True,
@@ -120,6 +121,8 @@ user_app = DjangoDash('User', external_stylesheets=[dbc.themes.BOOTSTRAP, dbc.ic
                  external_scripts=['https://cdnjs.cloudflare.com/ajax/libs/plotly.js/3.0.0-rc.2/plotly.min.js'],
                  add_bootstrap_links=True)
 
+#dash.register_page(__name__, path="/user")
+
 # Define the layout
 user_app.layout = html.Div([
             navbar,
@@ -128,7 +131,8 @@ user_app.layout = html.Div([
                 dbc.Row([
                     # Logo Column
                     dbc.Col(
-                        html.Img(src="assets/NRC_Logo.png", height="100px"),  # Adjust height as needed
+                        html.Img(src="/assets/NRC_Logo.png", height="100px"),  # Adjust height as needed
+                        #html.Img(src=dash.get_asset_url("NRC_Logo.png"), height="100px"),  # Adjust height as needed
                         width="auto", className="p-3"
                     ),
                     dbc.Col(dcc.Checklist(options=[{"label": " Today", "value": "today"}], value='today', id="date-filter"), 
@@ -191,7 +195,7 @@ user_app.layout = html.Div([
                 dbc.Row([
                     dbc.Col([
                         html.Div([
-                            html.H3("User Data", className="bg-success text-white text-center rounded m-0"),
+                            html.H5("User Data", className="bg-success text-white text-center rounded m-0 p-2"),
                             dash_table.DataTable(
                                 # [{"name": i, "id": i} for i in grid_df.columns],
                                 id='user-table',
@@ -235,11 +239,11 @@ user_app.layout = html.Div([
                                 sort_action='native',
                                 page_size=10,
                             ),
-                        ]) #width=4, xs=12, sm=12, md=6, lg=12
-                    ], className="bg-white shadow rounded mt-4 mb-4 border",xs=12, lg=6),
+                        ], className="bg-white shadow rounded border p-2") #width=4, xs=12, sm=12, md=6, lg=12
+                    ], className="mt-4 mb-4",xs=12, lg=6),
                     dbc.Col([
                         html.Div([ 
-                            html.H3("Passenger Details", className="bg-success text-white text-center rounded m-0"), 
+                            html.H5("Passenger Details", className="bg-success text-white text-center rounded m-0 p-2"), 
                             dash_table.DataTable(
                                 # [{"name": i, "id": i} for i in grid_df.columns],
                                 id='passenger-table',
@@ -288,14 +292,14 @@ user_app.layout = html.Div([
                                 sort_action='native',
                                 page_size=10,
                             ),
-                        ]) #width=4, xs=12, sm=12, md=5, lg=12
-                    ], className="bg-white shadow rounded mt-4 mb-4 border",xs=12, lg=6),
-                ], className="bg-white shadow rounded mt-4 mb-4 border"), #width=4, xs=12, sm=12, md=5, lg=12
+                        ], className="bg-white shadow rounded border p-2") #width=4, xs=12, sm=12, md=5, lg=12
+                    ], className="mt-4 mb-4",xs=12, lg=6),
+                ]), #width=4, xs=12, sm=12, md=5, lg=12
 
                 dbc.Row([
                     dbc.Col([
                         html.Div([
-                            html.H4("Ticket Distribution by User Data", className="bg-success text-white text-center rounded m-0"),
+                            html.H5("Ticket Distribution by User Data", className="bg-success text-white text-center rounded m-0 p-2"),
                             dash_table.DataTable(
                                 # [{"name": i, "id": i} for i in grid_df.columns],
                                 id='user_tkt-table',
@@ -350,8 +354,8 @@ user_app.layout = html.Div([
                                 sort_action='native',
                                 page_size=10,
                             ), 
-                        ])
-                    ], className="bg-white shadow rounded mb-4 border", xs=12, lg=12),
+                        ], className="bg-white shadow rounded border p-2")
+                    ], className="mb-4", xs=12, lg=12),
                 ]),
             ], fluid=True),
             footer,

@@ -1,7 +1,7 @@
 import os
 import time
+import dash
 from dash import html, dcc, callback, Output, Input, dash_table, State
-#import dash_ag_grid as dag
 from dash import dash_table
 from django_plotly_dash import DjangoDash
 import dash_bootstrap_components as dbc
@@ -34,9 +34,9 @@ offcanvas = dbc.Offcanvas(
         dbc.Nav(
             [
                 dbc.NavLink("Home", href="/", active="exact"),
-                dbc.NavLink("Station", href="station/", active="exact"),
-                dbc.NavLink("User", href="user/", active="exact"),
-                dbc.NavLink("Summary", href="summary/", active="exact"),
+                dbc.NavLink("Station", href="/station", active="exact"),
+                dbc.NavLink("User", href="/user", active="exact"),
+                dbc.NavLink("Summary", href="/summary", active="exact"),
             ],
             vertical=True,
             pills=True,
@@ -116,107 +116,12 @@ footer = dbc.Container(
 
 end_date = datetime.today().date()
 
-
 #Initialize the Dash app
 station_app = DjangoDash('Station', external_stylesheets=[dbc.themes.BOOTSTRAP, dbc.icons.BOOTSTRAP],
                  external_scripts=['https://cdnjs.cloudflare.com/ajax/libs/plotly.js/3.0.0-rc.2/plotly.min.js'],
                  add_bootstrap_links=True)
 
-# dash_table.DataTable(sales_table_df.to_dict('records'), 
-#                                 #[{"name": i, "id": i} for i in sales_table_df.columns],
-#                                 columns=[
-#                                     {'id': 'booking_date', 'name': 'Date', 'type': 'text'},
-#                                     {'id': 'tickets_sold', 'name': 'Tickets Sold', 'type': 'numeric'},
-#                                     {'id':'online_transaction', 'name':'Online Transaction', 'type':'numeric'},
-#                                     {'id':'tom_transaction', 'name':'Tom Transaction', 'type':'numeric'},
-#                                     {'id':'total_no_of_transaction', 'name':'Total Transaction', 'type':'numeric'},
-#                                     {'id':'online_sales', 'name':'Online Sales', 'type':'numeric'},
-#                                     {'id':'tom_sales', 'name':'Tom Sales', 'type':'numeric'},
-#                                     {'id':'total_sales', 'name':'Total Sales', 'type':'numeric'},
-#                                 ],
-#                                 id='group-table',
-#                                 style_table={'overflowX': 'auto',
-#                                             #  'overflowY':'scroll',
-#                                             # 'width':'80%',
-#                                             # 'margin':'auto',
-#                                             'height': '600px',
-#                                             'overflowY': 'scroll',
-#                                 },
-#                                 # fixed_columns={'headers': True, 'data': 1},
-#                                 style_header={
-#                                     'backgroundColor': 'rgb(230, 230, 230)',
-#                                     'color':'dark',
-#                                     'fontWeight': 'bold',
-#                                     'textAlign': 'center',
-#                                 },
-#                                 style_cell={
-#                                     'padding': '10px',
-#                                     'border':'1px solid #ddd',
-#                                     #'textAlign': 'center',
-#                                     'fontFamily':'Arial, sans-serif',
-#                                     'minWidth':'150px', 'width':'150px', 'maxWidth':'150px',
-#                                     'minHeight':'10px', 'height':'10px', 'maxHeight':'10px',
-#                                 },
-#                                 # style_cell_conditional=[
-#                                 #     {'if': {'column_id': 'booking_from'},
-#                                 #      'textAlign': 'left',
-#                                 #      'min-width':'250px', 'width':'250px', 'max-width':'250px'}
-#                                 # ],
-#                                 style_data={
-#                                     'whiteSpace': 'normal',
-#                                     # 'height': 'auto',
-#                                     #'border': '1px solid black'
-#                                 },
-#                                 filter_action='native',
-#                                 sort_action='native',
-#                                 page_size=10,
-# )
-
-# class_table = dash_table.DataTable(class_table_df.to_dict('records'), 
-#                                 #[{"name": i, "id": i} for i in class_table_df.columns],
-#                                 columns=[
-#                                     {'id': 'booking_from', 'name': 'Station Name', 'type': 'text'},
-#                                     {'id':'first_class', 'name':'First Class', 'type':'text'}, 
-#                                     {'id':'business_class', 'name':'Business Class', 'type':'text'},
-#                                     {'id':'standard_class', 'name':'Standard Class', 'type':'text'},
-#                                 ],
-#                                 id='group-table',
-#                                 style_table={'overflowX': 'auto',
-#                                             #  'overflowY':'scroll',
-#                                             # 'width':'80%',
-#                                             # 'margin':'auto',
-#                                             'height': '300px',
-#                                             'overflowY': 'auto',
-#                                 },
-#                                 # fixed_columns={'headers': True, 'data': 1},
-#                                 style_header={
-#                                     'backgroundColor': 'rgb(230, 230, 230)',
-#                                     'color':'dark',
-#                                     'fontWeight': 'bold',
-#                                     'textAlign': 'center',
-#                                 },
-#                                 style_cell={
-#                                     'padding': '10px',
-#                                     'border':'1px solid #ddd',
-#                                     #'textAlign': 'center',
-#                                     'fontFamily':'Arial, sans-serif',
-#                                     'minWidth':'150px', 'width':'150px', 'maxWidth':'150px',
-#                                     'minHeight':'10px', 'height':'10px', 'maxHeight':'10px',
-#                                 },
-#                                 style_cell_conditional=[
-#                                     {'if': {'column_id': 'booking_from'},
-#                                      'textAlign': 'left',
-#                                      'min-width':'250px', 'width':'250px', 'max-width':'250px'}
-#                                 ],
-#                                 style_data={
-#                                     'whiteSpace': 'normal',
-#                                     # 'height': 'auto',
-#                                     #'border': '1px solid black'
-#                                 },
-#                                 filter_action='native',
-#                                 sort_action='native',
-#                                 page_size=10,
-# )
+#dash.register_page(__name__, path="/station")
 
 # Define the layout
 station_app.layout = html.Div([
@@ -226,7 +131,8 @@ station_app.layout = html.Div([
                 dbc.Row([
                     # Logo Column
                     dbc.Col(
-                        html.Img(src=localState.get_asset_url("NRC_Logo.png"), height="100px"),  # Adjust height as needed
+                        html.Img(src="/assets/NRC_Logo.png", height="100px"),  # Adjust height as needed
+                        #html.Img(src=dash.get_asset_url("NRC_Logo.png"), height="100px"),  # Adjust height as needed
                         width="auto", className="p-3"
                     ),
                     dbc.Col(dcc.Checklist(options=[{"label": " Today", "value": "today"}], value='today', id="date-filter"), 
@@ -289,7 +195,7 @@ station_app.layout = html.Div([
                 dbc.Row([
                     dbc.Col([
                         html.Div([
-                            html.H3("Group Booking", className="bg-success text-white text-center rounded m-0"),
+                            html.H5("Group Booking", className="bg-success text-white text-center rounded m-0"),
                             dash_table.DataTable(
                                 # [{"name": i, "id": i} for i in grid_df.columns],
                                 id='group-table',
@@ -340,11 +246,11 @@ station_app.layout = html.Div([
                                 sort_action='native',
                                 page_size=10,
                             ),
-                        ])  #width=4, xs=12, sm=12, md=6, lg=12 className="bg-white shadow rounded mt-4 mb-4 border"
-                    ], className="shadow rounded border mt -4 mb-4 p-2",xs=12, lg=6),
+                        ], className="bg-white shadow rounded border p-2")  #width=4, xs=12, sm=12, md=6, lg=12 
+                    ], className="mt-4 mb-4",xs=12, lg=6),
                     dbc.Col([
                         html.Div([
-                            html.H3("Ticket Count By Class", className="bg-success text-white text-center rounded m-0"),
+                            html.H5("Ticket Count By Class", className="bg-success text-white text-center rounded m-0"),
                             dash_table.DataTable(
                                 #[{"name": i, "id": i} for i in class_table_df.columns],
                                 columns=[
@@ -390,14 +296,14 @@ station_app.layout = html.Div([
                                 sort_action='native',
                                 page_size=10,
                             ),
-                        ]) #width=4,xs=12, sm=12, md=5, lg=12
-                    ], className="bg-white shadow rounded mt-4 mb-4 border", xs=12, lg=6),
+                        ], className="bg-white shadow rounded border p-2") #width=4,xs=12, sm=12, md=5, lg=12
+                    ], className="mt-4 mb-4", xs=12, lg=6),
                 ]),
 
                 dbc.Row([
                     dbc.Col([
                         html.Div([
-                            html.H3("Sales Table", className="bg-success text-white text-center rounded m-0"),
+                            html.H5("Sales Table", className="bg-success text-white text-center rounded m-0"),
                             dash_table.DataTable(
                                 #[{"name": i, "id": i} for i in sales_table_df.columns],
                                 columns=[
@@ -447,8 +353,8 @@ station_app.layout = html.Div([
                                 sort_action='native',
                                 page_size=10,
                             )
-                        ])
-                    ], className="shadow rounded border mb-5", xs=12, lg=12),
+                        ], className="bg-white shadow rounded border p-2")
+                    ], className="mb-3", xs=12, lg=12),
                 ]),
             ], fluid=True),
             footer,

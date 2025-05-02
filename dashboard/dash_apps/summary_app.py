@@ -1,4 +1,5 @@
 import os
+import dash
 from dash import html, dcc, callback, Output, Input, dash_table, State
 from django_plotly_dash import DjangoDash
 import dash_bootstrap_components as dbc
@@ -31,9 +32,9 @@ offcanvas = dbc.Offcanvas(
         dbc.Nav(
             [
                 dbc.NavLink("Home", href="/", active="exact"),
-                dbc.NavLink("Station", href="station/", active="exact"),
-                dbc.NavLink("User", href="user/", active="exact"),
-                dbc.NavLink("Summary", href="summary/", active="exact"),
+                dbc.NavLink("Station", href="/station", active="exact"),
+                dbc.NavLink("User", href="/user", active="exact"),
+                dbc.NavLink("Summary", href="/summary", active="exact"),
             ],
             vertical=True,
             pills=True,
@@ -120,29 +121,7 @@ summary_app = DjangoDash('Summary', external_stylesheets=[dbc.themes.BOOTSTRAP, 
                  external_scripts=['https://cdnjs.cloudflare.com/ajax/libs/plotly.js/3.0.0-rc.2/plotly.min.js'],
                  add_bootstrap_links=True)
 
-# # Retrieve DataFrame from Cache
-# summary_data = cache.get('dashboard_data')
-# print("Fetching data for summary from cache...")
-# df = pd.DataFrame(summary_data) 
-# df["booking_date"] = pd.to_datetime(df["booking_date"]).dt.date
-
-# daily_transaction_df = df.groupby("booking_date")["total_fare"].sum().reset_index()
-# fig2 = px.line(daily_transaction_df, x="booking_date", y="total_fare",
-#                         labels={"value": "Total Sales", "booking_date": "Date"}, title="Total Sales by Date")
-
-# # For this example, we update the pie and bar charts to reflect totals by Coach Type and Station.
-# # Update fig3 (Pie Chart): Sales by Coach Type.
-# updated_ticket_class_df = df.groupby("coach_type_name")["total_fare"].sum().reset_index()
-# fig3 = px.pie(updated_ticket_class_df, values="total_fare", names="coach_type_name", title="Sales by Coach Type")
-
-# # Update fig4 (Bar Chart): Total Fare by Coach Type.
-# fig4 = px.bar(updated_ticket_class_df, x="coach_type_name", y="total_fare",
-#                         labels={"total_fare": "Ticket Sales"}, title="Total Fare by Coach Type")
-
-# # Update fig5 (Horizontal Bar Chart): Total Fare by Boarding Station.
-# updated_station_df = df.groupby("booking_from")["total_fare"].sum().reset_index()
-# fig5 = px.bar(updated_station_df, x="total_fare", y="booking_from", orientation="h", title="Total Fare by Boarding Station")
-
+#dash.register_page(__name__, path="/summary")
 
 # Define the layout
 summary_app.layout = html.Div([
@@ -153,7 +132,8 @@ summary_app.layout = html.Div([
                 dbc.Row([
                     #Logo Column
                     dbc.Col(
-                        html.Img(src="assets/NRC_Logo.png", height="100px"),  # Adjust height as needed
+                        html.Img(src="/assets/NRC_Logo.png", height="100px"),  # Adjust height as needed
+                        #html.Img(src=dash.get_asset_url("NRC_Logo.png"), height="100px"),  # Adjust height as needed
                         width="auto", className="p-3"
                     ),
                     dbc.Col(dcc.Checklist(options=[{"label": " Today", "value": "today"}], value=["today"], id="date-filter"), 
@@ -216,30 +196,30 @@ summary_app.layout = html.Div([
                 dbc.Row([
                     dbc.Col([
                         html.Div([
-                            html.H3("Sales by Date", className="bg-success text-white text-center rounded m-0"),
+                            html.H5("Sales by Date", className="bg-success text-white text-center rounded m-0 p-2"),
                             dcc.Graph(id="daily-transactions"),
-                        ], className="bg-white shadow rounded mb-4 border p-2")  #width=4, xs=12, sm=12, md=12, lg=12
-                    ], className="mt-4", xs=12, lg=6),
+                        ], className="bg-white shadow rounded border p-2")  #width=4, xs=12, sm=12, md=12, lg=12
+                    ], className="mt-4 mb-4", xs=12, lg=6),
                     dbc.Col([
                         html.Div([
-                            html.H3("Sales by Coach Type", className="bg-success text-white text-center rounded m-0"),
+                            html.H5("Sales by Coach Type", className="bg-success text-white text-center rounded m-0 p-2"),
                             dcc.Graph(id="coachtype-pie"),
-                        ], className="bg-white shadow rounded mb-4 border p-2") #width=4, xs=12, sm=12, md=12, lg=12
-                    ], className="mt-4", xs=12, lg=6),
+                        ], className="bg-white shadow rounded border p-2") #width=4, xs=12, sm=12, md=12, lg=12
+                    ], className="mt-4 mb-4", xs=12, lg=6),
                 ]),
                 dbc.Row([
                     dbc.Col([
                         html.Div([
-                            html.H3("Fare by Coach Type", className="bg-success text-white text-center rounded m-0"),
+                            html.H5("Fare by Coach Type", className="bg-success text-white text-center rounded m-0 p-2"),
                             dcc.Graph(id="coachtype-bar"),
-                        ], className="bg-white shadow rounded mb-4 border p-2"),  #width=4, xs=12, sm=12, md=12, lg=12
-                    ], className="mt-4", xs=12, lg=6),
+                        ], className="bg-white shadow rounded border p-2"),  #width=4, xs=12, sm=12, md=12, lg=12
+                    ], className="mt-4 mb-4", xs=12, lg=6),
                     dbc.Col([
                         html.Div([
-                            html.H3("Fare by Station", className="bg-success text-white text-center rounded m-0"),
+                            html.H5("Fare by Station", className="bg-success text-white text-center rounded m-0 p-2"),
                             dcc.Graph(id="stationtype-bar"),
-                        ], className="bg-white shadow rounded mb-4 border p-2"),  #width=4, xs=12, sm=12, md=12, lg=12
-                    ], className="mt-4", xs=12, lg=6),
+                        ], className="bg-white shadow rounded border p-2"),  #width=4, xs=12, sm=12, md=12, lg=12
+                    ], className="mt-4 mb-4", xs=12, lg=6),
                 ]),
             ], fluid=True),
             footer,
@@ -249,11 +229,11 @@ summary_app.layout = html.Div([
 
 # Callback for Offcanvas Toggle
 @summary_app.callback(
-    Output("offcanvas-scrollable", "is_open"),
-    Input("open-offcanvas-scrollable", "n_clicks"),
-    State("offcanvas-scrollable", "is_open"),
+    Output("offcanvas", "is_open"),
+    Input("open-offcanvas", "n_clicks"),
+    State("offcanvas", "is_open"),
 )
-def toggle_offcanvas_scrollable(n1, is_open):
+def toggle_offcanvas(n1, is_open):
     if n1:
         return not is_open
     return is_open

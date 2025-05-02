@@ -1,5 +1,6 @@
 import os
 import time
+import dash
 from dash import html, dcc, callback, Output, Input, dash_table, State
 from dash import dash_table
 from django_plotly_dash import DjangoDash
@@ -34,9 +35,9 @@ offcanvas = dbc.Offcanvas(
         dbc.Nav(
             [
                 dbc.NavLink("Home", href="/", active="exact"),
-                dbc.NavLink("Station", href="station/", active="exact"),
-                dbc.NavLink("User", href="user/", active="exact"),
-                dbc.NavLink("Summary", href="summary/", active="exact"),
+                dbc.NavLink("Station", href="/station/", active="exact"),
+                dbc.NavLink("User", href="/user/", active="exact"),
+                dbc.NavLink("Summary", href="/summary/", active="exact"),
             ],
             vertical=True,
             pills=True,
@@ -117,7 +118,7 @@ footer = dbc.Container(
 end_date = datetime.today().date()
 
 #Initialize the Dash app
-dashboard_app = DjangoDash('Dashboard', external_stylesheets=[dbc.themes.BOOTSTRAP, dbc.icons.BOOTSTRAP],
+dashboard_app = DjangoDash('Dashboard', external_stylesheets=[dbc.themes.BOOTSTRAP, dbc.icons.BOOTSTRAP], #use_pages=True,
                  external_scripts=['https://cdnjs.cloudflare.com/ajax/libs/plotly.js/3.0.0-rc.2/plotly.min.js'],
                  add_bootstrap_links=True)
 
@@ -129,7 +130,7 @@ dashboard_app.layout = html.Div([
                 dbc.Row([
                 #Logo Column
                 dbc.Col(
-                    html.Img(src="assets/NRC_Logo.png", height="100px"),  # Adjust height as needed
+                    html.Img(src="/assets/NRC_Logo.png", height="100px"),  # Adjust height as needed
                     width="auto", className="p-3"
                 ),
                 dbc.Col(dcc.Checklist(options=[{"label": " Today", "value": "today"}], value=["today"], id="date-filter"), 
@@ -232,7 +233,7 @@ dashboard_app.layout = html.Div([
                 #Right side column for Chart
             dbc.Col([
                     html.Div([
-                        html.H3("Ticket Sale", className="bg-success text-white text-center rounded m-0"),
+                        html.H5("Ticket Sale", className="bg-success text-white text-center rounded m-0"),
                         dcc.Graph(id="daily-transactions",                                       #config={'responsive': True}
                                 style={'height': '100%', 'width': '100%'})
                     ], className="bg-white shadow rounded mb-4 border p-2")
@@ -243,7 +244,7 @@ dashboard_app.layout = html.Div([
             dbc.Row([
                 dbc.Col([
                     html.Div([
-                        html.H4("Summary Table", className="bg-success text-white text-center rounded m-0 mb-2"),
+                        html.H5("Summary Table", className="bg-success text-white text-center rounded m-0 mb-2"),
                         dash_table.DataTable(
                             id='summary-table',
                             columns=[
