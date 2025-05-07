@@ -4,7 +4,10 @@ import dash
 from dash import html, dcc, callback, Output, Input, dash_table, State
 from dash import dash_table
 from django_plotly_dash import DjangoDash
+import dpd_components as dpd
 import dash_bootstrap_components as dbc
+
+
 from dashboard.utils import get_cached_dashboard_data, get_booking_data, get_validator_data
 import pandas as pd
 import numpy as np
@@ -28,93 +31,6 @@ logging.basicConfig(level=logging.DEBUG)
 logger = logging.getLogger(__name__)
 
 
-# Offcanvas component
-offcanvas = dbc.Offcanvas(
-    [
-        html.P("Ticket Booking Dashboard"),
-        dbc.Nav(
-            [
-                dbc.NavLink("Home", href="/", active="exact"),
-                dbc.NavLink("Station", href="/station/", active="exact"),
-                dbc.NavLink("User", href="/user/", active="exact"),
-                dbc.NavLink("Summary", href="/summary/", active="exact"),
-            ],
-            vertical=True,
-            pills=True,
-        ),
-    ],
-    id="offcanvas",
-    title="Menu",
-    is_open=False,
-    placement="start",
-    scrollable=True,
-)
-
-# Navbar with optional Collapse wrapping the toggle button
-# Navbar with no spacing on the left
-navbar = dbc.Navbar(
-    dbc.Container(
-        [
-            dbc.Row(
-                [
-                    dbc.Col(
-                        dbc.Button(
-                            "☰",
-                            id="open-offcanvas",
-                            n_clicks=0,
-                            color="light",
-                            className="p-0 m-0 bg-success border-0 text-white",  # no margin or border
-                        ),
-                        width="auto",
-                        className="p-0 m-0",  # remove space from column
-                    ),
-                    dbc.Col(
-                        html.A(
-                            dbc.NavbarBrand("Ticket Booking Dashboard", className="ms-2"),
-                            href="/",
-                            style={"textDecoration": "none"},
-                        ),
-                        width="auto",
-                    ),
-                    dbc.Col(
-                        html.A(
-                            dbc.NavbarBrand("Logout", className="ms-2"),
-                            href="/logout",
-                        ),
-                        width="auto",
-                        className="ms-auto"
-                    ),
-                ],
-                align="center",
-                className="g-0 w-100",
-            ),
-        ],
-        fluid=True,  # removes container's side spacing
-        #className="p-0",  # just in case
-    ),
-    color="success",
-    dark=True,
-    #className="p-0",  # navbar padding reset
-)
-
-
-#Copyright © 2025 Ticket Booking System
-footer = dbc.Container(
-    dbc.Row(
-        dbc.Col(
-            html.Small("Copyright © 2025 Ticket Booking System",
-                       className="text-center text-white"),
-            width=12
-        ),
-        # dbc.Col(
-        #             html.Img(src="assets/GSDS_Logo.png", height="40px"),  # Adjust height as needed
-        #             width="auto", className="p-3"
-        # )
-    ),
-    fluid=True,
-    className="bg-success py-3 mt-auto"
-)
-
 end_date = datetime.today().date()
 
 #Initialize the Dash app
@@ -124,8 +40,8 @@ dashboard_app = DjangoDash('Dashboard', external_stylesheets=[dbc.themes.BOOTSTR
 
 
 dashboard_app.layout = html.Div([
-            navbar,
-            offcanvas,
+            # navbar,
+            # offcanvas,
             dbc.Container([
                 dbc.Row([
                 #Logo Column
@@ -134,15 +50,17 @@ dashboard_app.layout = html.Div([
                     width="auto", className="p-3"
                 ),
                 dbc.Col(dcc.Checklist(options=[{"label": " Today", "value": "today"}], value=["today"], id="date-filter"), 
-                        width=1, xs=2, sm=2, md=2, lg=1, xl=1, xxl=1, className="p-3 mt-2"),  #, className="mb-2"
+                        xs=2, sm=2, md=2, lg=1, xl=1, xxl=1, className="p-3"),  #, className="mb-2"
                 dbc.Col(dcc.DatePickerRange(
                     id='date-picker',
-                    className="rounded",
                     start_date="10-11-2023",  #df['booking_date'].min()
                     end_date=end_date,  #df['booking_date'].max()
                     display_format='DD/MM/YYYY',
-                ), xs=12, sm=12, md=3, lg=4, className="p-3 rounded"),  #, className="p-2"
-            ], align="center"),
+                    className="p-2",
+                ), width="auto"),  #, className="p-2" , xs=12, lg=4
+                dbc.Col(dbc.Button("Submit Date", id="date-submit", color="success", className="w-100"), 
+                        xs=12, sm=12, lg=2, className="p-3"),
+            ], justify="center", align="center"),
             dbc.Row([
                 dbc.Col(dcc.Dropdown(
                     id="boarding-station",
@@ -234,8 +152,7 @@ dashboard_app.layout = html.Div([
             dbc.Col([
                     html.Div([
                         html.H5("Ticket Sale", className="bg-success text-white text-center rounded m-0"),
-                        dcc.Graph(id="daily-transactions",                                       #config={'responsive': True}
-                                style={'height': '100%', 'width': '100%'})
+                        dcc.Graph(id="coachtype-pie") #style={'height': '100%', 'width': '100%'}
                     ], className="bg-white shadow rounded mb-4 border p-2")
                 ], className="mt-4", xs=12, lg=6),
             ]),
@@ -244,7 +161,7 @@ dashboard_app.layout = html.Div([
             dbc.Row([
                 dbc.Col([
                     html.Div([
-                        html.H5("Summary Table", className="bg-success text-white text-center rounded m-0 mb-2"),
+                        html.H5("Summary Table", className="bg-success text-white text-center rounded m-0"),
                         dash_table.DataTable(
                             id='summary-table',
                             columns=[
@@ -283,13 +200,16 @@ dashboard_app.layout = html.Div([
                             ],
                             filter_action='native',
                             sort_action='native',
-                            fixed_rows={'headers': True},
+                            fixed_rows={'headers': True,
+                                        'Total': True,
+                                        }
+                            ,
                         )
-                    ]) #, className="p-2"
-                ], className="shadow rounded border mb-3 p-2", xs=12, lg=12)
+                    ], className="shadow rounded border p-2") #, className="p-2"
+                ], className="mb-4", xs=12, lg=12)
             ]),
         ], fluid=True),
-            footer,
+            # footer,
 ])
 
 @dashboard_app.callback(
@@ -312,7 +232,8 @@ def toggle_offcanvas(n1, is_open):
     Output("tom-sales", "children"),
     Output("total-sales", "children"),
     Output("nrc-revenue", "children"),
-    Output("daily-transactions", "figure"),
+    #Output("daily-transactions", "figure"),
+    Output("coachtype-pie", "figure"),
     Output("summary-table", "data"),
     #Output("summary-table", "columns"),
     #Inputs
@@ -453,9 +374,13 @@ def update_dashboard(date_filter, start_date, end_date, station, route,  coach, 
         print(f"Total Sales Amount: {nrc_rev}")
 
         #Updating the Charts 
-        daily_transaction_dff = dff.groupby("booking_date")["total_fare"].sum().reset_index()
-        updated_fig1 = px.line(daily_transaction_dff, x="booking_date", y="total_fare",
-                                labels={"value": "Total Sales", "booking_date": "Date"}, title="Total Sales by Date")
+        # daily_transaction_dff = dff.groupby("booking_date")["total_fare"].sum().reset_index()
+        # updated_fig1 = px.line(daily_transaction_dff, x="booking_date", y="total_fare",
+        #                         labels={"value": "Total Sales", "booking_date": "Date"}, title="Total Sales by Date")
+        
+        updated_ticket_class_dff = dff.groupby("coach_type_name")["total_fare"].sum().reset_index()
+        # updated_ticket_class_df.rename(columns={"Total Fare": "Sales"}, inplace=True)
+        updated_fig1 = px.pie(updated_ticket_class_dff, values="total_fare", names="coach_type_name", title="Sales by Coach Type")
         
         #updating the table
         summary_dff = dff.groupby('booking_from').agg(

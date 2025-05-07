@@ -5,6 +5,7 @@ from dash import html, dcc, callback, Output, Input, dash_table, State
 from dash import dash_table
 from django_plotly_dash import DjangoDash
 import dash_bootstrap_components as dbc
+import dpd_components as dpd
 from dashboard.utils import get_cached_dashboard_data, get_booking_data
 import pandas as pd
 import numpy as np
@@ -27,92 +28,92 @@ logging.basicConfig(level=logging.DEBUG)
 logger = logging.getLogger(__name__)
 
 
-# Offcanvas component
-offcanvas = dbc.Offcanvas(
-    [
-        html.P("Ticket Booking Dashboard"),
-        dbc.Nav(
-            [
-                dbc.NavLink("Home", href="/", active="exact"),
-                dbc.NavLink("Station", href="/station", active="exact"),
-                dbc.NavLink("User", href="/user", active="exact"),
-                dbc.NavLink("Summary", href="/summary", active="exact"),
-            ],
-            vertical=True,
-            pills=True,
-        ),
-    ],
-    id="offcanvas",
-    title="Menu",
-    is_open=False,
-    placement="start",
-    scrollable=True,
-)
+# # Offcanvas component
+# offcanvas = dbc.Offcanvas(
+#     [
+#         html.P("Ticket Booking Dashboard"),
+#         dbc.Nav(
+#             [
+#                 dbc.NavLink("Home", href="/", active="exact"),
+#                 dbc.NavLink("Station", href="/station", active="exact"),
+#                 dbc.NavLink("User", href="/user", active="exact"),
+#                 dbc.NavLink("Summary", href="/summary", active="exact"),
+#             ],
+#             vertical=True,
+#             pills=True,
+#         ),
+#     ],
+#     id="offcanvas",
+#     title="Menu",
+#     is_open=False,
+#     placement="start",
+#     scrollable=True,
+# )
 
-# Navbar with optional Collapse wrapping the toggle button
-# Navbar with no spacing on the left
-navbar = dbc.Navbar(
-    dbc.Container(
-        [
-            dbc.Row(
-                [
-                    dbc.Col(
-                        dbc.Button(
-                            "☰",
-                            id="open-offcanvas",
-                            n_clicks=0,
-                            color="light",
-                            className="p-0 m-0 bg-success border-0 text-white",  # no margin or border
-                        ),
-                        width="auto",
-                        className="p-0 m-0",  # remove space from column
-                    ),
-                    dbc.Col(
-                        html.A(
-                            dbc.NavbarBrand("Ticket Booking Dashboard", className="ms-2"),
-                            href="/",
-                            style={"textDecoration": "none"},
-                        ),
-                        width="auto",
-                    ),
-                    dbc.Col(
-                        html.A(
-                            dbc.NavbarBrand("Logout", className="ms-2"),
-                            href="/logout",
-                        ),
-                        width="auto",
-                        className="ms-auto"
-                    ),
-                ],
-                align="center",
-                className="g-0 w-100",
-            ),
-        ],
-        fluid=True,  # removes container's side spacing
-        #className="p-0",  # just in case
-    ),
-    color="success",
-    dark=True,
-    #className="p-0",  # navbar padding reset
-)
+# # Navbar with optional Collapse wrapping the toggle button
+# # Navbar with no spacing on the left
+# navbar = dbc.Navbar(
+#     dbc.Container(
+#         [
+#             dbc.Row(
+#                 [
+#                     dbc.Col(
+#                         dbc.Button(
+#                             "☰",
+#                             id="open-offcanvas",
+#                             n_clicks=0,
+#                             color="light",
+#                             className="p-0 m-0 bg-success border-0 text-white",  # no margin or border
+#                         ),
+#                         width="auto",
+#                         className="p-0 m-0",  # remove space from column
+#                     ),
+#                     dbc.Col(
+#                         html.A(
+#                             dbc.NavbarBrand("Ticket Booking Dashboard", className="ms-2"),
+#                             href="/",
+#                             style={"textDecoration": "none"},
+#                         ),
+#                         width="auto",
+#                     ),
+#                     dbc.Col(
+#                         html.A(
+#                             dbc.NavbarBrand("Logout", className="ms-2"),
+#                             href="/logout",
+#                         ),
+#                         width="auto",
+#                         className="ms-auto"
+#                     ),
+#                 ],
+#                 align="center",
+#                 className="g-0 w-100",
+#             ),
+#         ],
+#         fluid=True,  # removes container's side spacing
+#         #className="p-0",  # just in case
+#     ),
+#     color="success",
+#     dark=True,
+#     #className="p-0",  # navbar padding reset
+# )
 
 
-#Copyright © 2025 Ticket Booking System
-footer = dbc.Container(
-    dbc.Row(
-        dbc.Col(
-            html.Small("Copyright © 2025 Ticket Booking System",
-                       className="text-center text-white"),
-            width=12
-        ),
-        # dbc.Col(
-        #             html.Img(src="assets/GSDS_Logo.png", height="40px"),  # Adjust height as needed
-        #             width="auto", className="p-3"
-        # )
-    ),
-    fluid=True,
-    className="bg-success py-3 mt-auto"
-)
+# #Copyright © 2025 Ticket Booking System
+# footer = dbc.Container(
+#     dbc.Row([
+#         dbc.Col(
+#             html.Small("Copyright © 2025 Ticket Booking System",
+#                        className="text-center bs-dark"),
+#             width=11
+#         ),
+#         dbc.Col(
+#             html.Img(src="/assets/GSDS_Logo.jpg", height="30px"),  # Adjust height as needed
+#             width="auto", className="p-0 me-2",
+#         )
+#     ], justify="end"),
+#     fluid=True,
+#     className="bg-white py-3 mt-auto shadow"
+# )
 
 end_date = datetime.today().date()
 
@@ -125,25 +126,28 @@ station_app = DjangoDash('Station', external_stylesheets=[dbc.themes.BOOTSTRAP, 
 
 # Define the layout
 station_app.layout = html.Div([
-            navbar,
-            offcanvas,
-            dbc.Container([
-                dbc.Row([
-                    # Logo Column
+                #navbar,
+                #offcanvas,
+                dbc.Container([
+                    dbc.Row([
+                    #Logo Column
                     dbc.Col(
                         html.Img(src="/assets/NRC_Logo.png", height="100px"),  # Adjust height as needed
-                        #html.Img(src=dash.get_asset_url("NRC_Logo.png"), height="100px"),  # Adjust height as needed
                         width="auto", className="p-3"
                     ),
-                    dbc.Col(dcc.Checklist(options=[{"label": " Today", "value": "today"}], value='today', id="date-filter"), 
-                            width=1, xs=2, sm=2, md=2, lg=1, xl=1, xxl=1, className="p-3 mt-2"),  #, className="mb-2"
+                    dbc.Col(dcc.Checklist(options=[{"label": " Today", "value": "today"}], value=["today"], id="date-filter"), 
+                            width=1, xs=2, sm=2, md=2, lg=1, xl=1, xxl=1, className="p-3"),  #, className="mb-2"
                     dbc.Col(dcc.DatePickerRange(
                         id='date-picker',
-                        start_date="10-11-2023",
-                        end_date=end_date,
-                        display_format='DD/MM/YYYY'
-                    ), width=4, xs=12, sm=12, md=3, lg=4, className="p-3 rounded"),  #, className="p-2"
-                ]),
+                        className="p-3 rounded",
+                        start_date="10-11-2023",  #df['booking_date'].min()
+                        end_date=end_date,  #df['booking_date'].max()
+                        display_format='DD/MM/YYYY',
+                        #style={"padding": "2px"},
+                    ), xs=12, lg=4),  #, className="p-2"
+                    dbc.Col(dbc.Button("Submit Date", id="date-submit", color="success", className="w-100"), 
+                            xs=12, sm=12, lg=2, className="p-3"),
+                ], align="center"),
                 dbc.Row([
                     dbc.Col(dcc.Dropdown(
                         id="boarding-station",
@@ -163,7 +167,7 @@ station_app.layout = html.Div([
                         className="rounded"
                     ), xs=12, sm=12, md=2, className="p-3"), #give width
                     dbc.Col(dcc.Dropdown(
-                        id="route-name",
+                        id="route-name",   #'Lagos-Ibadan', 'Ibadan-Lagos', 'KAJOLA-APAPA','APAPA-KAJOLA', 'LAGOS-IBADAN_LITS', 'KAJOLA-APAPA_BAT','Lagos-Ibadan_Afternoon', 'Ibadan-Lagos_Afternoon'
                         options=[
                             {"label": "LITS", "value": "LITS"},
                             {"label": "BAT", "value": "BAT"},
@@ -244,7 +248,9 @@ station_app.layout = html.Div([
                                 },
                                 filter_action='native',
                                 sort_action='native',
-                                page_size=10,
+                                #page_size=10,
+                                fixed_rows={'headers': True,
+                                },
                             ),
                         ], className="bg-white shadow rounded border p-2")  #width=4, xs=12, sm=12, md=6, lg=12 
                     ], className="mt-4 mb-4",xs=12, lg=6),
@@ -294,7 +300,9 @@ station_app.layout = html.Div([
                                 },
                                 filter_action='native',
                                 sort_action='native',
-                                page_size=10,
+                                #page_size=10,
+                                fixed_rows={'headers': True,
+                                },
                             ),
                         ], className="bg-white shadow rounded border p-2") #width=4,xs=12, sm=12, md=5, lg=12
                     ], className="mt-4 mb-4", xs=12, lg=6),
@@ -321,7 +329,7 @@ station_app.layout = html.Div([
                                             #  'overflowY':'scroll',
                                             # 'width':'80%',
                                             # 'margin':'auto',
-                                            'height': '600px',
+                                            #'height': '600px',
                                             'overflowY': 'scroll',
                                 },
                                 # fixed_columns={'headers': True, 'data': 1},
@@ -351,13 +359,15 @@ station_app.layout = html.Div([
                                 },
                                 filter_action='native',
                                 sort_action='native',
-                                page_size=10,
+                                #page_size=10,
+                                fixed_rows={'headers': True,
+                                },
                             )
                         ], className="bg-white shadow rounded border p-2")
                     ], className="mb-3", xs=12, lg=12),
                 ]),
             ], fluid=True),
-            footer,
+            #footer,
 ])
 
 # Callback for Offcanvas Toggle
@@ -390,139 +400,142 @@ def toggle_offcanvas(n1, is_open):
 )
 
 def update_station(date_filter, start_date, end_date, station, route, coach, username, pnr, clear_clicks):
-    
-    booking_data = get_booking_data()
-    dff = pd.DataFrame(booking_data)
+    try:
+        booking_data = get_booking_data()
+        dff = pd.DataFrame(booking_data)
 
-    print("The length of the dataframe is:", len(dff))
-    print(f"Today date:{date_filter} (Type: {type(date_filter)})")
-    print(f"Start Date:{start_date} (Type: {type(start_date)})")
-    print(f"End Date:{end_date} (Type: {type(end_date)})")
-    print(f"Station name: {station} (Type: {type(station)})")
-    print(f"Route name: {route} (Type: {type(route)})")
-    print(f"Coach type: {coach} (Type: {type(coach)})")
-    print(f"User name: {username} (Type: {type(username)})")
-    print(f"PNR Number: {pnr} (Type: {type(pnr)})")
-    print(f"\n===== DEBUG: DataFrame being filtered =====")
+        print("The length of the dataframe is:", len(dff))
+        print(f"Today date:{date_filter} (Type: {type(date_filter)})")
+        print(f"Start Date:{start_date} (Type: {type(start_date)})")
+        print(f"End Date:{end_date} (Type: {type(end_date)})")
+        print(f"Station name: {station} (Type: {type(station)})")
+        print(f"Route name: {route} (Type: {type(route)})")
+        print(f"Coach type: {coach} (Type: {type(coach)})")
+        print(f"User name: {username} (Type: {type(username)})")
+        print(f"PNR Number: {pnr} (Type: {type(pnr)})")
+        print(f"\n===== DEBUG: DataFrame being filtered =====")
 
-    # Convert start_date and end_date to native date
-    start_date = pd.to_datetime(start_date).date()
-    end_date = pd.to_datetime(end_date).date()
-    print(f"Start Date after filtering:{start_date} (Type: {type(start_date)})")
-    print(f"End Date after filtering:{end_date} (Type: {type(end_date)})")
+        # Convert start_date and end_date to native date
+        start_date = pd.to_datetime(start_date).date()
+        end_date = pd.to_datetime(end_date).date()
+        print(f"Start Date after filtering:{start_date} (Type: {type(start_date)})")
+        print(f"End Date after filtering:{end_date} (Type: {type(end_date)})")
 
-    # Convert 'booking_date' to native date
-    dff["booking_date"] = pd.to_datetime(dff["booking_date"]).dt.date
+        # Convert 'booking_date' to native date
+        dff["booking_date"] = pd.to_datetime(dff["booking_date"]).dt.date
 
-    if "today" in date_filter:
-        today_date = datetime.today().date()
-        print(today_date)
-        dff = dff[dff["booking_date"] == today_date]
-    else:
-        # Filter the dataframe
-        dff = dff[(dff["booking_date"] >= start_date) & (dff["booking_date"] <= end_date)]
+        if "today" in date_filter:
+            today_date = datetime.today().date()
+            print(today_date)
+            dff = dff[dff["booking_date"] == today_date]
+        else:
+            # Filter the dataframe
+            dff = dff[(dff["booking_date"] >= start_date) & (dff["booking_date"] <= end_date)]
 
-    print(f"[INFO] DataFrame now has {len(dff)} records after date filtering.")
+        print(f"[INFO] DataFrame now has {len(dff)} records after date filtering.")
 
-    #Filter by boarding station
-    if station:
-        dff = dff[dff["booking_from"] == station]
-    print(type(station))
-    print(f"[INFO] Filtered by Station: {station}. Remaining records: {len(dff)}")
+        #Filter by boarding station
+        if station:
+            dff = dff[dff["booking_from"] == station]
+        print(type(station))
+        print(f"[INFO] Filtered by Station: {station}. Remaining records: {len(dff)}")
 
-    #filter by route name
-    conditions = [
-        dff['route_name'].isin(["Lagos-Ibadan", "Ibadan-Lagos", "LAGOS-IBADAN_LITS", "Lagos-Ibadan_Afternoon", "Ibadan-Lagos_Afternoon"]),
-        dff['route_name'].isin(["APAPA-KAJOLA", "KAJOLA-APAPA", "KAJOLA-APAPA_BAT"]),
-    ]
-    choices = ["LITS", "BAT"]
-    dff['filtered_route'] = np.select(conditions, choices, default="Other")
-    print(dff['filtered_route'].unique())
-    print(dff['route_name'].unique())
+        #filter by route name
+        conditions = [
+            dff['route_name'].isin(["Lagos-Ibadan", "Ibadan-Lagos", "LAGOS-IBADAN_LITS", "Lagos-Ibadan_Afternoon", "Ibadan-Lagos_Afternoon"]),
+            dff['route_name'].isin(["APAPA-KAJOLA", "KAJOLA-APAPA", "KAJOLA-APAPA_BAT"]),
+        ]
+        choices = ["LITS", "BAT"]
+        dff['filtered_route'] = np.select(conditions, choices, default="Other")
+        print(dff['filtered_route'].unique())
+        print(dff['route_name'].unique())
 
-    if route:
-        dff = dff[dff["filtered_route"] == route]
-    print(type(route))
-    print(f"[INFO] Filtered by Route Name: {route}. Remaining records: {len(dff)}")
+        if route:
+            dff = dff[dff["filtered_route"] == route]
+        print(type(route))
+        print(f"[INFO] Filtered by Route Name: {route}. Remaining records: {len(dff)}")
 
-    #filter by coach type
-    if coach:
-        dff = dff[dff["coach_type_name"] == coach]
-    print(type(coach))
-    print(f"[INFO] Filtered by Coach Type: {coach}. Remaining records: {len(dff)}")
+        #filter by coach type
+        if coach:
+            dff = dff[dff["coach_type_name"] == coach]
+        print(type(coach))
+        print(f"[INFO] Filtered by Coach Type: {coach}. Remaining records: {len(dff)}")
 
-    #filter by pnr input
-    if pnr:
-        dff = dff[dff["pnr_number"] == pnr]
-    print(type(pnr))
-    print(f"[INFO] Filtered by PNR: {pnr}. Remaining records: {len(dff)}")
+        #filter by pnr input
+        if pnr:
+            dff = dff[dff["pnr_number"] == pnr]
+        print(type(pnr))
+        print(f"[INFO] Filtered by PNR: {pnr}. Remaining records: {len(dff)}")
 
-    #clear all filters
-    clear_start_date = "10-11-2023"
-    clear_end_date = datetime.today().date()
-    if clear_clicks:
-        start_date = clear_start_date
-        end_date = clear_end_date
-        username = None
-        pnr = None
+        #clear all filters
+        clear_start_date = "10-11-2023"
+        clear_end_date = datetime.today().date()
+        if clear_clicks:
+            start_date = clear_start_date
+            end_date = clear_end_date
+            username = None
+            pnr = None
+            
+
+        # Debugging final dataset before visualization
+        print(f"\n===== DEBUG: Final Filtered DataFrame =====")
+        print(dff)  # Show first few rows of the final DataFrame
+        print(f"[INFO] Final DataFrame contains {len(dff)} rows.")
+
+
+        group_table_dff = dff.groupby(['poc_corporation_name']).agg(
+            total_fare = ('total_fare','sum'),
+            medical = ('medical','sum'),
+            insurance = ('insurance','sum'),
+            stamp_duty = ('stamp_duty','sum'),
+            nrc_tkt_rev = ('nrc_tkt_rev','sum'),
+            gsd_tkt_rev = ('gsd_tkt_rev','sum'),
+            icrc_tkt_rev = ('icrc_tkt_rev','sum'),
+            no_of_passengers = ('no_of_passengers','sum'),
+        ).reset_index()
+
+        group_total_row = (
+        pd.DataFrame([group_table_dff.drop(columns=['poc_corporation_name']).sum()], columns=group_table_dff.columns)
+        .assign(poc_corporation_name='Total')
+        )
+        group_table_dff = pd.concat([group_table_dff, group_total_row],ignore_index=True)
+
+        updated_group_table = group_table_dff.to_dict('records')
         
 
-    # Debugging final dataset before visualization
-    print(f"\n===== DEBUG: Final Filtered DataFrame =====")
-    print(dff)  # Show first few rows of the final DataFrame
-    print(f"[INFO] Final DataFrame contains {len(dff)} rows.")
+        class_table_dff = dff.groupby('booking_from').agg(
+        first_class=('coach_type_name', lambda x: (x == 'First Class').sum()),
+        business_class=('coach_type_name', lambda x: (x == 'Business Class').sum()),
+        standard_class=('coach_type_name', lambda x: (x == 'Standard Class').sum())
+        ).reset_index()
+        
+        class_total_row = (
+        pd.DataFrame([class_table_dff.drop(columns=['booking_from']). sum()], columns=class_table_dff.columns)
+        .assign(booking_from='Total')
+        )
+        class_table_dff = pd.concat([class_table_dff, class_total_row], ignore_index=True)
 
+        updated_class_table = class_table_dff.to_dict('records')
 
-    group_table_dff = dff.groupby(['poc_corporation_name']).agg(
-          total_fare = ('total_fare','sum'),
-          medical = ('medical','sum'),
-          insurance = ('insurance','sum'),
-          stamp_duty = ('stamp_duty','sum'),
-          nrc_tkt_rev = ('nrc_tkt_rev','sum'),
-          gsd_tkt_rev = ('gsd_tkt_rev','sum'),
-          icrc_tkt_rev = ('icrc_tkt_rev','sum'),
-          no_of_passengers = ('no_of_passengers','sum'),
-    ).reset_index()
+        sales_table_dff = dff.groupby('booking_date').agg(
+        tickets_sold = ('no_of_passengers', 'count'),
+        online_transaction = ('total_fare', lambda x: (dff.loc[x.index, 'type'] == 'ONLINE').sum()),
+        tom_transaction = ('total_fare', lambda x: (dff.loc[x.index, 'type'] == 'OFFLINE').sum()),
+        total_no_of_transaction = ('total_fare', 'count'),
+        online_sales = ('total_fare', lambda x: dff.loc[x.index[dff.loc[x.index, 'type'] == 'ONLINE'], 'total_fare'].sum()),
+        tom_sales = ('total_fare', lambda x: dff.loc[x.index[dff.loc[x.index, 'type'] == 'OFFLINE'], 'total_fare'].sum()),
+        total_sales = ('total_fare', 'sum')
+        ).reset_index()
 
-    group_total_row = (
-    pd.DataFrame([group_table_dff.drop(columns=['poc_corporation_name']).sum()], columns=group_table_dff.columns)
-    .assign(poc_corporation_name='Total')
-    )
-    group_table_dff = pd.concat([group_table_dff, group_total_row],ignore_index=True)
+        sales_total_row = (
+        pd.DataFrame([sales_table_dff.drop(columns=['booking_date']). sum()], columns=sales_table_dff.columns)
+        .assign(booking_date='Total')
+        )
+        sales_table_dff = pd.concat([sales_table_dff, sales_total_row], ignore_index=True)
 
-    updated_group_table = group_table_dff.to_dict('records')
-    
+        updated_sales_table = sales_table_dff.to_dict('records')
 
-    class_table_dff = dff.groupby('booking_from').agg(
-    first_class=('coach_type_name', lambda x: (x == 'First Class').sum()),
-    business_class=('coach_type_name', lambda x: (x == 'Business Class').sum()),
-    standard_class=('coach_type_name', lambda x: (x == 'Standard Class').sum())
-    ).reset_index()
-    
-    class_total_row = (
-    pd.DataFrame([class_table_dff.drop(columns=['booking_from']). sum()], columns=class_table_dff.columns)
-    .assign(booking_from='Total')
-    )
-    class_table_dff = pd.concat([class_table_dff, class_total_row], ignore_index=True)
-
-    updated_class_table = class_table_dff.to_dict('records')
-
-    sales_table_dff = dff.groupby('booking_date').agg(
-    tickets_sold = ('no_of_passengers', 'count'),
-    online_transaction = ('total_fare', lambda x: (dff.loc[x.index, 'type'] == 'ONLINE').sum()),
-    tom_transaction = ('total_fare', lambda x: (dff.loc[x.index, 'type'] == 'OFFLINE').sum()),
-    total_no_of_transaction = ('total_fare', 'count'),
-    online_sales = ('total_fare', lambda x: dff.loc[x.index[dff.loc[x.index, 'type'] == 'ONLINE'], 'total_fare'].sum()),
-    tom_sales = ('total_fare', lambda x: dff.loc[x.index[dff.loc[x.index, 'type'] == 'OFFLINE'], 'total_fare'].sum()),
-    total_sales = ('total_fare', 'sum')
-    ).reset_index()
-
-    sales_total_row = (
-    pd.DataFrame([sales_table_dff.drop(columns=['booking_date']). sum()], columns=sales_table_dff.columns)
-    .assign(booking_date='Total')
-    )
-    sales_table_dff = pd.concat([sales_table_dff, sales_total_row], ignore_index=True)
-
-    updated_sales_table = sales_table_dff.to_dict('records')
-
-    return updated_group_table, updated_class_table, updated_sales_table
+        return updated_group_table, updated_class_table, updated_sales_table
+    except Exception as e:
+        print("Callback Error:", e)
+        return "Err", "Err", "Err"
