@@ -1,20 +1,22 @@
 # version: '3.9'
 
-# services:
-#   redis:
-#     image: redis:7.2
-#     container_name: redis
-#     command: ["redis-server", "/usr/local/etc/redis/redis.conf"]
-#     volumes:
-#       - ./redis.conf:/usr/local/etc/redis/redis.conf:ro
-#     networks:
-#       - secure-net
-#     restart: always
-#     healthcheck:
-#       test: ["CMD", "redis-cli", "ping"]
-#       interval: 30s
-#       timeout: 10s
-#       retries: 5
+services:
+  redis:
+    image: redis:7.2
+    container_name: redis
+    command: ["redis-server", "/usr/local/etc/redis/redis.conf"]
+    volumes:
+      - ./redis.conf:/usr/local/etc/redis/redis.conf
+    networks:
+      - secure-net
+    # ports: []
+    
+    # restart: always
+    # healthcheck:
+    #   test: ["CMD", "redis-cli", "ping"]
+    #   interval: 30s
+    #   timeout: 10s
+    #   retries: 5
 
 #   web:
 #     build: .
@@ -32,6 +34,6 @@
 #       - secure-net
 #     restart: always
 
-# networks:
-#   secure-net:
-#     driver: bridge
+networks:
+  secure-net:
+    driver: bridge

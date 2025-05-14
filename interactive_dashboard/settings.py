@@ -235,32 +235,33 @@ PLOTLY_DASH = {
     "serve_locally": False,
 }
 
-# REDIS_PASSWORD = os.getenv('REDIS_PASSWORD')
-# REDIS_HOST = os.getenv('REDIS_HOST')
-# REDIS_PORT = os.getenv('REDIS_PORT')
-# REDIS_DB = os.getenv('REDIS_DB')
+REDIS_PASSWORD = os.getenv('REDIS_PASSWORD')
+REDIS_HOST = os.getenv('REDIS_HOST')
+REDIS_PORT = os.getenv('REDIS_PORT')
+REDIS_DB = os.getenv('REDIS_DB')
 
 CACHES = {
     "default": {
         "BACKEND":"django_redis.cache.RedisCache",
-        "LOCATION":"redis://127.0.0.1:6379/1",
+        "LOCATION": f"redis://:{REDIS_PASSWORD}@{REDIS_HOST}:{REDIS_PORT}/{REDIS_DB}",  #redis://127.0.0.1:6379/1
         "OPTIONS":{
-            "CLEINT_CLASS":"django_redis.client.DefaultClient",
+            "CLIENT_CLASS":"django_redis.client.DefaultClient",
+            "REDIS_PASSWORD": REDIS_PASSWORD,
         }
     } 
 }
 
-#"REDIS_PASSWORD": REDIS_PASSWORD,
+
 #"SOCKET_CONNECT_TIMEOUT": 5,
 #"SOCKET_TIMEOUT": 5,
 #"IGNORE_EXCEPTIONS": True,
 
 # Celery settings
 #set the broker url
-CELERY_BROKER_URL = 'redis://localhost:6379/1'
+CELERY_BROKER_URL = f"redis://:{REDIS_PASSWORD}@{REDIS_HOST}:{REDIS_PORT}/{REDIS_DB}" # 'redis://localhost:6379/1'
 
 #set the result backend
-CELERY_RESULT_BACKEND = 'redis://localhost:6379/1'
+CELERY_RESULT_BACKEND = f"redis://:{REDIS_PASSWORD}@{REDIS_HOST}:{REDIS_PORT}/{REDIS_DB}" #'redis://localhost:6379/1'
 
 #set the celery beat scheduler
 #CELERY_BEAT_SCHEDULER = 'django_celery_beat.schedulers:DatabaseScheduler'
