@@ -9,7 +9,9 @@ services:
       - ./redis.conf:/usr/local/etc/redis/redis.conf
     networks:
       - secure-net
-    # ports: []
+    ports:
+      - "6379:6379"
+
     
     # restart: always
     # healthcheck:
