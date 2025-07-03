@@ -42,71 +42,128 @@ dashboard_app = DjangoDash('Dashboard', external_stylesheets=[dbc.themes.BOOTSTR
 dashboard_app.layout = html.Div([
             # navbar,
             # offcanvas,
-            dbc.Container([
+            dbc.Container([        
                 dbc.Row([
-                #Logo Column
-                dbc.Col(
-                    html.Img(src="/assets/NRC_Logo.png", height="100px"),  # Adjust height as needed
-                    width="auto", className="p-3"
-                ),
-                dbc.Col(dcc.Checklist(options=[{"label": " Today", "value": "today"}], value=["today"], id="date-filter"), 
-                        xs=2, sm=2, md=2, lg=1, xl=1, xxl=1, className="p-3"),  #, className="mb-2"
-                dbc.Col(dcc.DatePickerRange(
-                    id='date-picker',
-                    start_date="10-11-2023",  #df['booking_date'].min()
-                    end_date=end_date,  #df['booking_date'].max()
-                    display_format='DD/MM/YYYY',
-                    className="p-2",
-                ), width="auto"),  #, className="p-2" , xs=12, lg=4
-                dbc.Col(dbc.Button("Submit Date", id="date-submit", color="success", className="w-100"), 
-                        xs=12, sm=12, lg=2, className="p-3"),
-            ], justify="center", align="center"),
-            dbc.Row([
-                dbc.Col(dcc.Dropdown(
-                    id="boarding-station",
-                    options=[
-                        {"label": "Ebute Metta", "value": "Mobolaji Johnson Station Ebute Metta"},
-                        {"label": "Agege", "value": "Babatunde Raji Fashola Station Agege"},
-                        {"label": "Agbado", "value": "Lateef Kayode Jakande Station Agbado"},
-                        {"label": "Kajola", "value": "Professor Yemi Oshinbajo Station Kajola"},
-                        {"label": "Papalanto", "value": "Olu Funmilayo Ransome Kuti Papalanto"},
-                        {"label": "Abeokuta", "value": "Professor Wole Soyinka Station Abeokuta"},
-                        {"label": "Olodo", "value": "Aremo Olusegun Osoba Olodo"},
-                        {"label": "Omi-Adio", "value": "Ladoke Akintola Station Omi-Adio"},
-                        {"label": "Moniya", "value": "Obafemi Awolowo Station Moniya"},
-                    ],
-                    value=None,
-                    placeholder="Boarding Station",
-                    className="rounded"
-                ), xs=12, sm=12, md=2, className="p-3"), #give width
-                dbc.Col(dcc.Dropdown(
-                    id="route-name",   #'Lagos-Ibadan', 'Ibadan-Lagos', 'KAJOLA-APAPA','APAPA-KAJOLA', 'LAGOS-IBADAN_LITS', 'KAJOLA-APAPA_BAT','Lagos-Ibadan_Afternoon', 'Ibadan-Lagos_Afternoon'
-                    options=[
-                        {"label": "LITS", "value": "LITS"},
-                        {"label": "BAT", "value": "BAT"},
-                    ],
-                    value=None,
-                    placeholder="Route Name", 
-                    className="rounded"
-                ), xs=6, sm=6, md=2, className="p-3"), #give width
-                dbc.Col(dcc.Dropdown(
-                    id="coach-type",
-                    options=[
-                        {"label": "First Class", "value": "First Class"},
-                        {"label": "Business Class", "value": "Business Class"},
-                        {"label": "Standard Class", "value": "Standard Class"},
-                    ],
-                    value=None,
-                    placeholder="Coach Type", 
-                    className="rounded"
-                ), xs=6, sm=6, md=2, className="p-3"),
-                dbc.Col(dcc.Input(id="user-name", type="text", placeholder="User Name", className="form-control rounded border p-1.5"), 
-                        xs=6, sm=6, md=2, className="p-3"),
-                dbc.Col(dcc.Input(id="pnr-number", type="text", placeholder="PNR Number", className="form-control rounded border p-1.5"), 
-                        xs=6, sm=6, md=2, className="p-3"),
-                dbc.Col(dbc.Button("Clear", id="clear-filters", color="success", className="w-100"), 
-                        xs=12, sm=12, md=1, className="p-3"),
-            ], justify="center", className="bg-white shadow rounded"),
+                    # Logo Column
+                    dbc.Col(
+                        html.Div([
+                            html.Img(src="/assets/NRC_Logo.png", height="100px"),  # Adjust height as needed
+                        ]), width="auto", className="p-3"
+                    ),
+                        # Checklist + Date Range Picker in one row
+                    dbc.Col(
+                        html.Div([
+                            dbc.Row([
+                                dbc.Col(
+                                    dcc.Checklist(
+                                        options=[{"label": " Today", "value": "today"}],
+                                        value=["today"],
+                                        id="date-filter"
+                                    ),
+                                    width="auto", className="pe-1"
+                                ),
+                                dbc.Col(
+                                    dcc.DatePickerRange(
+                                        id='date-picker',
+                                        start_date="2023-11-10",
+                                        end_date=end_date,
+                                        display_format='DD/MM/YYYY',
+                                        style={
+                                            'maxWidth': '180px',
+                                            'fontSize': '12px',
+                                            'padding': '0.25rem',
+                                            'whiteSpace': 'nowrap'
+                                        },
+                                    ),
+                                    width="auto"
+                                )
+                            ], className="d-flex flex-nowrap align-items-center justify-content-start"),
+                        ]),
+                        xs=12, sm=12, md=4, lg=3, xl=3, xxl=3, className="p-3"
+                    ),
+                    dbc.Col(
+                        html.Div([
+                            dbc.Button("Submit Date", id="date-submit", color="success", className="w-100")
+                        ]),
+                        xs=12, sm=12, lg=2, className="p-3"
+                    ),
+                ], justify="center", align="center"),
+
+                dbc.Row([
+                    dbc.Col(
+                        html.Div([
+                            dcc.Dropdown(
+                                id="boarding-station",
+                                options=[
+                                    {"label": "Ebute Metta", "value": "Mobolaji Johnson Station Ebute Metta"},
+                                    {"label": "Agege", "value": "Babatunde Raji Fashola Station Agege"},
+                                    {"label": "Agbado", "value": "Lateef Kayode Jakande Station Agbado"},
+                                    {"label": "Kajola", "value": "Professor Yemi Oshinbajo Station Kajola"},
+                                    {"label": "Papalanto", "value": "Olu Funmilayo Ransome Kuti Papalanto"},
+                                    {"label": "Abeokuta", "value": "Professor Wole Soyinka Station Abeokuta"},
+                                    {"label": "Olodo", "value": "Aremo Olusegun Osoba Olodo"},
+                                    {"label": "Omi-Adio", "value": "Ladoke Akintola Station Omi-Adio"},
+                                    {"label": "Moniya", "value": "Obafemi Awolowo Station Moniya"},
+                                ],
+                                value=None,
+                                placeholder="Boarding Station",
+                                className="rounded"
+                            )
+                        ]),
+                        xs=12, sm=12, md=2, className="p-3"
+                    ),
+                    dbc.Col(
+                        html.Div([
+                            dcc.Dropdown(
+                                id="route-name",
+                                options=[
+                                    {"label": "LITS", "value": "LITS"},
+                                    {"label": "BAT", "value": "BAT"},
+                                ],
+                                value=None,
+                                placeholder="Route Name",
+                                className="rounded"
+                            )
+                        ]),
+                        xs=6, sm=6, md=2, className="p-3"
+                    ),
+                    dbc.Col(
+                        html.Div([
+                            dcc.Dropdown(
+                                id="coach-type",
+                                options=[
+                                    {"label": "First Class", "value": "First Class"},
+                                    {"label": "Business Class", "value": "Business Class"},
+                                    {"label": "Standard Class", "value": "Standard Class"},
+                                ],
+                                value=None,
+                                placeholder="Coach Type",
+                                className="rounded"
+                            )
+                        ]),
+                        xs=6, sm=6, md=2, className="p-3"
+                    ),
+                    dbc.Col(
+                        html.Div([
+                            dcc.Input(id="user-name", type="text", placeholder="User Name", className="form-control rounded border p-1.5")
+                        ]),
+                        xs=6, sm=6, md=2, className="p-3"
+                    ),
+                    dbc.Col(
+                        html.Div([
+                            dcc.Input(id="pnr-number", type="text", placeholder="PNR Number", className="form-control rounded border p-1.5")
+                        ]),
+                        xs=6, sm=6, md=2, className="p-3"
+                    ),
+                    dbc.Col(
+                        html.Div([
+                            dbc.Button("Clear", id="clear-filters", color="success", className="w-100")
+                        ]),
+                        xs=12, sm=12, md=1, className="p-3"
+                    ),
+                ], justify="center", className="bg-white shadow rounded"),
+
+
 
             # KPI Indicators
             dbc.Row([
@@ -254,7 +311,8 @@ def toggle_offcanvas(n1, is_open):
 def update_dashboard(date_filter, start_date, end_date, station, route,  coach, username, pnr, clear_clicks):
     try:
         booking_data = get_booking_data()
-        dff = pd.DataFrame(booking_data)
+        df = pd.DataFrame(booking_data)
+        dff = df[df['booking_status'] == 'BOOKED']
         validator_data = get_validator_data()
         validator_dff = pd.DataFrame(validator_data)
 
