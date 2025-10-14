@@ -7,7 +7,6 @@ from django_plotly_dash import DjangoDash
 import dpd_components as dpd
 import dash_bootstrap_components as dbc
 
-
 from dashboard.utils import get_cached_dashboard_data, get_booking_data, get_validator_data
 import pandas as pd
 import numpy as np

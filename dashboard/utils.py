@@ -1,132 +1,152 @@
+# utils.py
+
 import os
 import math
 import logging
 import pandas as pd
 import orjson
 import lz4.frame
-import psycopg2
 from django.core.cache import cache
+from datetime import timedelta
+from collections import defaultdict
 
-# Logging setup
 logging.basicConfig(level=logging.DEBUG)
 logger = logging.getLogger(__name__)
 
 # -------------------- Chunking Logic --------------------
 def chunk_and_cache_df(df, key_prefix, chunk_size=10000):
-    # Convert all datetime columns to ISO strings
-    for col in df.select_dtypes(include=["datetime64[ns]", "datetime64[ns, UTC]", "object"]):
-        if pd.api.types.is_datetime64_any_dtype(df[col]):
-            df[col] = df[col].astype(str)
+    """Save DataFrame in Redis chunks with compression."""
+    for col in df.select_dtypes(include=["datetime64[ns]", "datetime64[ns, UTC]"]):
+        df[col] = df[col].astype(str)
 
-    records = df.to_dict(orient='records')
+    records = df.to_dict(orient="records")
     total_records = len(records)
     num_chunks = math.ceil(total_records / chunk_size)
 
     for i in range(num_chunks):
         chunk = records[i * chunk_size : (i + 1) * chunk_size]
-
         try:
-            json_bytes = orjson.dumps(chunk)
-            compressed = lz4.frame.compress(json_bytes)
+            compressed = lz4.frame.compress(orjson.dumps(chunk))
             cache.set(f"{key_prefix}_chunk_{i}", compressed, timeout=None)
         except Exception as e:
-            logger.error(f"Chunk {i} failed to compress/save: {e}")
+            logger.error(f"❌ Failed to save {key_prefix}_chunk_{i}: {e}")
 
     cache.set(f"{key_prefix}_chunk_count", num_chunks, timeout=None)
-    logger.debug(f"Stored {key_prefix} in {num_chunks} chunks.")
+    logger.info(f"✅ Stored {total_records} rows for {key_prefix} in {num_chunks} chunks.")
 
 def read_all_chunks(key_prefix):
+    """Read all chunks for a given prefix from Redis."""
     chunks = []
     chunk_count = cache.get(f"{key_prefix}_chunk_count")
-
     if isinstance(chunk_count, bytes):
         chunk_count = int(chunk_count.decode())
-    
     chunk_count = chunk_count or 0
+
     for i in range(chunk_count):
         compressed = cache.get(f"{key_prefix}_chunk_{i}")
         if compressed:
             try:
-                json_bytes = lz4.frame.decompress(compressed)
-                chunk = orjson.loads(json_bytes)
+                chunk = orjson.loads(lz4.frame.decompress(compressed))
                 chunks.extend(chunk)
             except Exception as e:
-                logger.error(f"Failed to load chunk {key_prefix}_chunk_{i}: {e}")
+                logger.error(f"❌ Failed to load {key_prefix}_chunk_{i}: {e}")
         else:
-            logger.warning(f"Missing chunk {key_prefix}_chunk_{i}")
+            logger.warning(f"⚠️ Missing {key_prefix}_chunk_{i}")
     return chunks
 
-def get_booking_data():
-    return read_all_chunks("dashboard_data")
+# -------------------- Aggregation Helpers --------------------
+def _merge_group_list(rows, key_name):
+    agg = defaultdict(float)
+    for r in rows:
+        agg[r[key_name]] += r["value"]
+    return [{key_name: k, "value": v} for k, v in agg.items()]
 
-def get_validator_data():
-    return read_all_chunks("validator_data")
+def _make_summary(df, value_col="total_fare", count_col="id"):
+    return {
+        "total_value": float(df[value_col].sum()) if value_col in df else 0.0,
+        "count": int(df[count_col].count()) if count_col in df else 0,
+    }
 
-def get_user_data():
-    return read_all_chunks("user_data")
+# -------------------- Booking Aggregations --------------------
+def cache_booking_aggregations(df, date_col="booking_date"):
+    """Cache booking data aggregations by day/week/month/year."""
+    if df.empty: return
+    df[date_col] = pd.to_datetime(df[date_col], errors="coerce")
+    df = df.dropna(subset=[date_col])
+    df["year"] = df[date_col].dt.year
+    df["month"] = df[date_col].dt.strftime("%Y-%m")
+    df["week"] = df[date_col].dt.strftime("%Y-W%U")
+    df["day"] = df[date_col].dt.strftime("%Y-%m-%d")
 
-# -------------------- Main Function --------------------
-def get_cached_dashboard_data():
-    # Try reading from cache
-    data = read_all_chunks("dashboard_data")
-    if data:
-        print("Fetched dashboard data from cache.")
-        return data
+    def _compute_dimensions(sub):
+        dims = {}
+        if "coach_type_name" in sub:
+            dims["by_coach"] = sub.groupby("coach_type_name")["total_fare"].sum().reset_index().to_dict("records")
+        if "booking_from" in sub:
+            dims["by_station"] = sub.groupby("booking_from")["total_fare"].sum().reset_index().to_dict("records")
+        if "poc_corporation_name" in sub:
+            dims["by_corporation"] = sub.groupby("poc_corporation_name")["total_fare"].sum().reset_index().to_dict("records")
+        if "user_name" in sub:
+            dims["by_user"] = sub.groupby("user_name")["total_fare"].sum().reset_index().to_dict("records")
+        if "booking_date" in sub:
+            daily = sub.groupby("booking_date")["total_fare"].sum().reset_index()
+            dims["daily_trend"] = daily.to_dict("records")
+        return dims
 
-    print("Cache is empty. Fetching data from DB...")
+    for level, col in [("day", "day"), ("week", "week"), ("month", "month"), ("year", "year")]:
+        for key, sub in df.groupby(col):
+            cache.set(
+                f"dashboard:agg:booking:{level}:{key}",
+                {"summary": _make_summary(sub, "total_fare", "id"), **_compute_dimensions(sub)},
+                timeout=None,
+            )
 
-    try:
-        # PostgreSQL Connection
-        connection = psycopg2.connect(
-            dbname=os.getenv('DB_NAME'),
-            user=os.getenv('DB_USER'),
-            password=os.getenv('DB_PASSWORD'),
-            host=os.getenv('DB_HOST'),
-            port=os.getenv('DB_PORT')
-        )
-        cursor = connection.cursor()
+# -------------------- Validator Aggregations --------------------
+def cache_validator_aggregations(df, date_col="created_at"):
+    """Cache validator data aggregations."""
+    if df.empty: return
+    df[date_col] = pd.to_datetime(df[date_col], errors="coerce")
+    df = df.dropna(subset=[date_col])
+    df["year"] = df[date_col].dt.year
+    df["month"] = df[date_col].dt.strftime("%Y-%m")
+    df["week"] = df[date_col].dt.strftime("%Y-W%U")
+    df["day"] = df[date_col].dt.strftime("%Y-%m-%d")
 
-        # 1️⃣ Booking Table
-        query = """
-            SELECT id, booking_date, booking_from, booking_id, booking_to, coach_type_name, fultterwave_charge, gsd_cov_fee, 
-            gsd_tkt_rev, icrc_tkt_rev, insurance, medical, nrc_cov_fee, nrc_tkt_rev, no_of_passengers, pnr_number, seat_type, 
-            stamp_duty, booking_status, total_cov_fee, total_fare, total_tkt_revenue, train_name, travel_date, type, user_name,
-            user_type, created_at, route_name, poc_corporation_name 
-            FROM booking ORDER BY booking_date;
-        """
-        cursor.execute(query)
-        columns = [desc[0] for desc in cursor.description]
-        df = pd.DataFrame(cursor.fetchall(), columns=columns)
-        chunk_and_cache_df(df, "dashboard_data")
+    def _compute_dimensions(sub):
+        dims = {}
+        if "status" in sub:
+            dims["by_status"] = sub.groupby("status")["id"].count().reset_index().rename(columns={"id": "count"}).to_dict("records")
+        return dims
 
-        # 2️⃣ Validator Table
-        validator_query = """
-            SELECT id, status, booking_id, validated_at, created_at, updated_at 
-            FROM booking_verification_details ORDER BY created_at;
-        """
-        cursor.execute(validator_query)
-        validator_columns = [desc[0] for desc in cursor.description]
-        validator_df = pd.DataFrame(cursor.fetchall(), columns=validator_columns)
-        chunk_and_cache_df(validator_df, "validator_data")
+    for level, col in [("day", "day"), ("week", "week"), ("month", "month"), ("year", "year")]:
+        for key, sub in df.groupby(col):
+            cache.set(
+                f"dashboard:agg:validator:{level}:{key}",
+                {"summary": _make_summary(sub, "id", "id"), **_compute_dimensions(sub)},
+                timeout=None,
+            )
 
-        # 3️⃣ User Table
-        user_query = """
-            SELECT id, booking_id, coach_name, passenger_identification_number, passenger_contact, passenger_email, 
-            passenger_name, passenger_type, seat_number, seat_type, created_at, updated_at 
-            FROM booking_details ORDER BY created_at;
-        """
-        cursor.execute(user_query)
-        user_columns = [desc[0] for desc in cursor.description]
-        user_df = pd.DataFrame(cursor.fetchall(), columns=user_columns)
-        chunk_and_cache_df(user_df, "user_data")
+# -------------------- User Aggregations --------------------
+def cache_user_aggregations(df, date_col="created_at"):
+    """Cache user/passenger data aggregations."""
+    if df.empty: return
+    df[date_col] = pd.to_datetime(df[date_col], errors="coerce")
+    df = df.dropna(subset=[date_col])
+    df["year"] = df[date_col].dt.year
+    df["month"] = df[date_col].dt.strftime("%Y-%m")
+    df["week"] = df[date_col].dt.strftime("%Y-W%U")
+    df["day"] = df[date_col].dt.strftime("%Y-%m-%d")
 
-        cursor.close()
-        connection.close()
-        print("DB connection closed. All data cached in chunks.")
+    def _compute_dimensions(sub):
+        dims = {}
+        if "passenger_type" in sub:
+            dims["by_passenger_type"] = sub.groupby("passenger_type")["id"].count().reset_index().rename(columns={"id": "count"}).to_dict("records")
+        return dims
 
-        # Return booking data for immediate use
-        return df.to_dict(orient='records')
-
-    except Exception as e:
-        logger.error(f"DB Fetch Error: {e}")
-        return "Failed to fetch data."
+    for level, col in [("day", "day"), ("week", "week"), ("month", "month"), ("year", "year")]:
+        for key, sub in df.groupby(col):
+            cache.set(
+                f"dashboard:agg:user:{level}:{key}",
+                {"summary": _make_summary(sub, "id", "id"), **_compute_dimensions(sub)},
+                timeout=None,
+            )
