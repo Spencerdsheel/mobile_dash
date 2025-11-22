@@ -53,7 +53,7 @@ INSTALLED_APPS = [
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
 
-    'whitenoise.middleware.WhiteNoiseMiddleware',                    #manually added
+    'whitenoise.middleware.WhiteNoiseMiddleware',                    
 
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.common.CommonMiddleware',
@@ -61,8 +61,8 @@ MIDDLEWARE = [
     'django.contrib.auth.middleware.AuthenticationMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
 
-    'django_plotly_dash.middleware.BaseMiddleware',                  #manually added
-    'django_plotly_dash.middleware.ExternalRedirectionMiddleware',   #manually added
+    'django_plotly_dash.middleware.BaseMiddleware',                  
+    'django_plotly_dash.middleware.ExternalRedirectionMiddleware',  
 
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
 ]
@@ -88,8 +88,6 @@ TEMPLATES = [
 WSGI_APPLICATION = 'interactive_dashboard.wsgi.application'
 
 
-# Database
-# https://docs.djangoproject.com/en/5.1/ref/settings/#databases
 
 DATABASES = {
     'dashboard':{
@@ -112,8 +110,6 @@ DATABASES = {
 }
 
 
-# Password validation
-# https://docs.djangoproject.com/en/5.1/ref/settings/#auth-password-validators
 
 AUTH_PASSWORD_VALIDATORS = [
     {
@@ -131,9 +127,6 @@ AUTH_PASSWORD_VALIDATORS = [
 ]
 
 
-# Internationalization
-# https://docs.djangoproject.com/en/5.1/topics/i18n/
-
 LANGUAGE_CODE = 'en-us'
 
 TIME_ZONE = 'UTC'
@@ -143,21 +136,14 @@ USE_I18N = True
 USE_TZ = True
 
 
-# Static files (CSS, JavaScript, Images)
-# https://docs.djangoproject.com/en/5.1/howto/static-files/
 
 STATIC_URL = '/assets/'
 
-X_FRAME_OPTIONS = 'SAMEORIGIN'    #Manually added
+X_FRAME_OPTIONS = 'SAMEORIGIN'   
 
-# Default primary key field type
-# https://docs.djangoproject.com/en/5.1/ref/settings/#default-auto-field
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
-
-
-# Added manually----------------------------------------------------------------------------------------------------------
 
 CRISPY_TEMPLATE_PACK = 'bootstrap5'
 
@@ -178,7 +164,6 @@ STATICFILES_DIRS = [
     BASE_DIR / "dashboard/assets",
 ]
 
-# Staticfiles finders for locating dash app assets and related files
 
 STATICFILES_FINDERS = [
 
@@ -190,52 +175,26 @@ STATICFILES_FINDERS = [
     'django_plotly_dash.finders.DashAppDirectoryFinder',
 ]
 
-# Plotly components containing static content that should
-# be handled by the Django staticfiles infrastructure
 
 PLOTLY_COMPONENTS = [
-
-    # Common components (ie within dash itself) are automatically added
-
-    # django-plotly-dash components
     'dpd_components',
-    # static support if serving local assets
     'dpd_static_support',
-
-    # Other components, as needed
     'dash_bootstrap_components',
-
     'dash_core_components',
     'dash_html_components',
 ]
 
 add_bootstrap_links=True
 
-# Django Plotly Dash settings
+
 PLOTLY_DASH = {
-
-    # Route used for the message pipe websocket connection
     "ws_route" :   "dpd/ws/channel",
-
-    # Route used for direct http insertion of pipe messages
     "http_route" : "dpd/views",
-
-    # Flag controlling existince of http poke endpoint
     "http_poke_enabled" : True,
-
-    # Insert data for the demo when migrating
     "insert_demo_migrations" : False,
-
-    # Timeout for caching of initial arguments in seconds
     "cache_timeout_initial_arguments": 60,
-
-    # Name of view wrapping function
     "view_decorator": None,
-
-    # Flag to control location of initial argument storage
     "cache_arguments": True,
-
-    # Flag controlling local serving of assets
     "serve_locally": False,
 }
 
@@ -247,7 +206,7 @@ REDIS_DB = os.getenv('REDIS_DB')
 CACHES = {
     "default": {
         "BACKEND":"django_redis.cache.RedisCache",
-        "LOCATION": f"redis://:{REDIS_PASSWORD}@{REDIS_HOST}:{REDIS_PORT}/{REDIS_DB}",  #redis://127.0.0.1:6379/1
+        "LOCATION": f"redis://:{REDIS_PASSWORD}@{REDIS_HOST}:{REDIS_PORT}/{REDIS_DB}",  
         "OPTIONS":{
             "CLIENT_CLASS":"django_redis.client.DefaultClient",
             "REDIS_PASSWORD": REDIS_PASSWORD,
@@ -255,31 +214,7 @@ CACHES = {
     } 
 }
 
+CELERY_BROKER_URL = f"redis://:{REDIS_PASSWORD}@{REDIS_HOST}:{REDIS_PORT}/{REDIS_DB}" 
 
-#"SOCKET_CONNECT_TIMEOUT": 5,
-#"SOCKET_TIMEOUT": 5,
-#"IGNORE_EXCEPTIONS": True,
-
-# Celery settings
-#set the broker url
-CELERY_BROKER_URL = f"redis://:{REDIS_PASSWORD}@{REDIS_HOST}:{REDIS_PORT}/{REDIS_DB}" # 'redis://localhost:6379/1'
-
-#set the result backend
-CELERY_RESULT_BACKEND = f"redis://:{REDIS_PASSWORD}@{REDIS_HOST}:{REDIS_PORT}/{REDIS_DB}" #'redis://localhost:6379/1'
-
-#set the celery beat scheduler
-#CELERY_BEAT_SCHEDULER = 'django_celery_beat.schedulers:DatabaseScheduler'
-
-
-#Securtiy
-#CSRF_TRUSTED_ORIGINS = ['http://localhost:8000']
-
-#Secure_SSL_REDIRECT = True
-#SESSION_COOKIE_SECURE = True
-#CSRF_COOKIE_SECURE = True
-
-
-#SECURE_HSTS_SECONDS = 3600
-#SECURE_HSTS_INCLUDE_SUBDOMAINS = True     #CHECK FIRST SUGGESTED BY
-#SECURE_HSTS_PRELOAD = True
+CELERY_RESULT_BACKEND = f"redis://:{REDIS_PASSWORD}@{REDIS_HOST}:{REDIS_PORT}/{REDIS_DB}" 
 

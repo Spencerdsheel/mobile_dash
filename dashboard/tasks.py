@@ -6,11 +6,8 @@ from .db import get_pg_connection, get_last_created_at_key, update_created_at_ke
 
 logger = logging.getLogger(__name__)
 
-# ------------------ Booking Cache Update ------------------
-
 @shared_task(bind=True)
 def update_booking_cache(self):
-    """Fetch new booking records and update Redis cache and aggregations."""
     try:
         logger.info("🔄 Updating booking cache...")
         conn = get_pg_connection()
@@ -20,10 +17,10 @@ def update_booking_cache(self):
         last_created = get_last_created_at_key(base_key)
 
         cursor.execute("""
-            SELECT id, booking_date, booking_from, booking_to,
-                   coach_type_name, total_fare, total_tkt_revenue,
-                   no_of_passengers, user_name, poc_corporation_name,
-                   route_name, type, created_at
+            SELECT id, booking_date, booking_from, booking_id, booking_to, coach_type_name, fultterwave_charge, gsd_cov_fee, 
+                   gsd_tkt_rev, icrc_tkt_rev, insurance, medical, nrc_cov_fee, nrc_tkt_rev, no_of_passengers, pnr_number, 
+                   seat_type, stamp_duty, booking_status, total_cov_fee, total_fare, total_tkt_revenue, train_name, 
+                   travel_date, type, user_name, user_type, created_at, route_name, poc_corporation_name 
             FROM booking
             WHERE created_at > %s
             ORDER BY created_at ASC
@@ -51,8 +48,6 @@ def update_booking_cache(self):
         logger.exception("🚨 Error in update_booking_cache:")
         raise self.retry(exc=e, countdown=60, max_retries=3)
 
-# ------------------ Validator Cache Update ------------------
-
 @shared_task(bind=True)
 def update_validator_cache(self):
     """Fetch validator data and update Redis cache."""
@@ -65,8 +60,8 @@ def update_validator_cache(self):
         last_created = get_last_created_at_key(base_key)
 
         cursor.execute("""
-            SELECT id, created_at, validator_name, passenger_name, ticket_id
-            FROM validator
+            SELECT id, status, booking_id, validated_at, created_at, updated_at
+            FROM booking_verification_details
             WHERE created_at > %s
             ORDER BY created_at ASC
         """, (last_created,))
@@ -93,8 +88,6 @@ def update_validator_cache(self):
         logger.exception("🚨 Error in update_validator_cache:")
         raise self.retry(exc=e, countdown=60, max_retries=3)
 
-# ------------------ User Cache Update ------------------
-
 @shared_task(bind=True)
 def update_user_cache(self):
     """Fetch user ticket data and update Redis cache."""
@@ -107,10 +100,9 @@ def update_user_cache(self):
         last_created = get_last_created_at_key(base_key)
 
         cursor.execute("""
-            SELECT id, user_name, total_fare, total_tkt_revenue,
-                   nrc_tkt_rev, gsd_tkt_rev, icrc_tkt_rev,
-                   no_of_passengers, booking_date, created_at
-            FROM user_tickets
+            SELECT id, booking_id, coach_name, passenger_identification_number, passenger_contact, passenger_email, 
+                   passenger_name, passenger_type, seat_number, seat_type, created_at, updated_at 
+            FROM booking_details
             WHERE created_at > %s
             ORDER BY created_at ASC
         """, (last_created,))

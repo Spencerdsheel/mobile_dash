@@ -3,23 +3,26 @@ import orjson
 import lz4.frame
 import logging
 from django.core.cache import cache
-from datetime import datetime, timedelta
+from datetime import timedelta
 from collections import defaultdict
 
 logger = logging.getLogger(__name__)
 
-# ------------------ Redis Compression ------------------
-
 def _compress(obj):
-    """Compress using ORJSON + LZ4 for performance."""
-    return lz4.frame.compress(orjson.dumps(obj))
+    try:
+        return lz4.frame.compress(orjson.dumps(obj, default=str))
+    except Exception as e:
+        logger.error(f"❌ Compression failed: {e}")
+        raise
 
 def _decompress(blob):
-    """Decompress back to Python object."""
-    return orjson.loads(lz4.frame.decompress(blob))
+    try:
+        return orjson.loads(lz4.frame.decompress(blob))
+    except Exception as e:
+        logger.error(f"❌ Decompression failed: {e}")
+        return None
 
 def cache_set(key, value, timeout=None):
-    """Save compressed value in Redis cache."""
     try:
         cache.set(key, _compress(value), timeout=timeout)
         logger.debug(f"✅ Cached key {key}")
@@ -27,36 +30,35 @@ def cache_set(key, value, timeout=None):
         logger.error(f"❌ Cache set failed for {key}: {e}")
 
 def cache_get(key):
-    """Retrieve and decompress value from Redis cache."""
     blob = cache.get(key)
     if not blob:
         return None
-    try:
-        return _decompress(blob)
-    except Exception as e:
-        logger.error(f"❌ Cache get failed for {key}: {e}")
-        return None
-
-# ------------------ Chunked Data Storage ------------------
+    return _decompress(blob)
 
 def chunk_and_cache_df(df, base_key, chunk_size=100000):
-    """Store large DataFrame in Redis by chunking."""
-    cache.delete_pattern(f"{base_key}:chunk:*")
-    total_rows = len(df)
-    if total_rows == 0:
-        return
-    num_chunks = (total_rows // chunk_size) + 1
-    for i in range(num_chunks):
-        start = i * chunk_size
-        end = start + chunk_size
-        chunk = df.iloc[start:end]
-        if not chunk.empty:
-            cache_set(f"{base_key}:chunk:{i}", chunk.to_dict("records"))
-    cache_set(f"{base_key}:chunk_count", num_chunks)
-    logger.info(f"✅ Stored {num_chunks} chunks for key {base_key}")
+    try:
+        cache.delete_pattern(f"{base_key}:chunk:*")
+
+        for col in df.select_dtypes(include=["datetime64[ns]", "datetime64[ns, UTC]"]).columns:
+            df[col] = df[col].astype(str)
+
+        total_rows = len(df)
+        if total_rows == 0:
+            return
+
+        num_chunks = (total_rows // chunk_size) + 1
+        for i in range(num_chunks):
+            chunk = df.iloc[i * chunk_size : (i + 1) * chunk_size]
+            if not chunk.empty:
+                cache_set(f"{base_key}:chunk:{i}", chunk.to_dict("records"))
+
+        cache_set(f"{base_key}:chunk_count", num_chunks)
+        logger.info(f"✅ Stored {num_chunks} chunks for key {base_key}")
+    except Exception as e:
+        logger.error(f"❌ Chunk and cache failed for {base_key}: {e}")
 
 def read_all_chunks(base_key):
-    """Read and merge all chunks from Redis."""
+    """Read all DataFrame chunks back from Redis."""
     chunk_count = cache_get(f"{base_key}:chunk_count")
     if not chunk_count:
         return []
@@ -67,52 +69,62 @@ def read_all_chunks(base_key):
             all_data.extend(part)
     return all_data
 
-# ------------------ Aggregation Helpers ------------------
+def _safe_sum(series):
+    """Safely sum a series even if it contains non-numeric data."""
+    return float(series.sum()) if pd.api.types.is_numeric_dtype(series) else 0.0
 
 def _make_summary(df):
-    """Generate key metrics summary."""
-    return {
-        "total_fare": float(df["total_fare"].sum()),
-        "total_tkt_revenue": float(df.get("total_tkt_revenue", pd.Series()).sum()),
-        "no_of_passengers": int(df.get("no_of_passengers", pd.Series()).sum()),
-        "transactions": len(df)
-    }
+    """Adaptive summary generator — only uses available columns."""
+    summary = {"transactions": len(df)}
+    if "total_fare" in df:
+        summary["total_fare"] = _safe_sum(df["total_fare"])
+    if "total_tkt_revenue" in df:
+        summary["total_tkt_revenue"] = _safe_sum(df["total_tkt_revenue"])
+    if "no_of_passengers" in df:
+        summary["no_of_passengers"] = int(df["no_of_passengers"].sum())
+    if "nrc_tkt_rev" in df:
+        summary["nrc_tkt_rev"] = _safe_sum(df["nrc_tkt_rev"])
+    if "gsd_tkt_rev" in df:
+        summary["gsd_tkt_rev"] = _safe_sum(df["gsd_tkt_rev"])
+    if "icrc_tkt_rev" in df:
+        summary["icrc_tkt_rev"] = _safe_sum(df["icrc_tkt_rev"])
+    return summary
 
 def _compute_dimensions(df):
-    """Compute grouped dimensions for dashboard charts/tables."""
+    """Adaptive grouped aggregates based on existing columns."""
     dims = {}
-    if "coach_type_name" in df:
+    if "coach_type_name" in df and "total_fare" in df:
         dims["by_coach"] = (
-            df.groupby("coach_type_name")["total_fare"]
-            .sum().reset_index().to_dict("records")
+            df.groupby("coach_type_name")["total_fare"].sum().reset_index().to_dict("records")
         )
-    if "booking_from" in df:
+    if "booking_from" in df and "total_fare" in df:
         dims["by_station"] = (
-            df.groupby("booking_from")["total_fare"]
-            .sum().reset_index().to_dict("records")
+            df.groupby("booking_from")["total_fare"].sum().reset_index().to_dict("records")
         )
-    if "poc_corporation_name" in df:
+    if "poc_corporation_name" in df and "total_fare" in df:
         dims["by_corporation"] = (
-            df.groupby("poc_corporation_name")["total_fare"]
-            .sum().reset_index().to_dict("records")
+            df.groupby("poc_corporation_name")["total_fare"].sum().reset_index().to_dict("records")
         )
-    if "user_name" in df:
+    if "user_name" in df and "total_fare" in df:
         dims["by_user"] = (
-            df.groupby("user_name")["total_fare"]
-            .sum().reset_index().to_dict("records")
+            df.groupby("user_name")["total_fare"].sum().reset_index().to_dict("records")
         )
-    if "booking_date" in df:
+    if "booking_date" in df and "total_fare" in df:
         daily = df.groupby("booking_date")["total_fare"].sum().reset_index()
         dims["daily_trend"] = daily.to_dict("records")
     return dims
 
-# ------------------ Pre-Aggregation Logic ------------------
-
 def cache_aggregations(df, table_name="booking", date_col="booking_date"):
-    """
-    Save daily, weekly, monthly, and yearly pre-aggregations to Redis.
-    Each key stores summary + grouped data.
-    """
+
+    if date_col not in df.columns:
+        for fallback in ["created_at", "travel_date", "date", "booking_datetime"]:
+            if fallback in df.columns:
+                date_col = fallback
+                break
+        else:
+            logger.warning(f"⚠️ No valid date column found in {table_name}, skipping aggregation.")
+            return
+        
     if df.empty:
         logger.warning(f"No data found for table {table_name} — skipping aggregation.")
         return
@@ -125,18 +137,12 @@ def cache_aggregations(df, table_name="booking", date_col="booking_date"):
     df["week"] = df[date_col].dt.strftime("%Y-W%U")
     df["day"] = df[date_col].dt.strftime("%Y-%m-%d")
 
-    for period, group_col in [
-        ("day", "day"),
-        ("week", "week"),
-        ("month", "month"),
-        ("year", "year")
-    ]:
+    for period, group_col in [("day", "day"), ("week", "week"), ("month", "month"), ("year", "year")]:
         for value, sub in df.groupby(group_col):
             key = f"{table_name}:agg:{period}:{value}"
             cache_set(key, {"summary": _make_summary(sub), **_compute_dimensions(sub)})
-    logger.info(f"✅ Cached daily, weekly, monthly, yearly aggregations for {table_name}")
 
-# ------------------ Range Reading (for Dash apps) ------------------
+    logger.info(f"✅ Cached daily, weekly, monthly, yearly aggregations for {table_name}")
 
 def _merge_group_list(rows, key_name):
     agg = defaultdict(float)
@@ -144,63 +150,61 @@ def _merge_group_list(rows, key_name):
         agg[r[key_name]] += r["total_fare"]
     return [{key_name: k, "total_fare": v} for k, v in agg.items()]
 
-def _read_range_generic(table_name, start_date, end_date):
-    """Read and merge preaggregated Redis data for given date range."""
+
+def read_range(table_name, start_date, end_date):
+    """Combine pre-aggregated data between two dates."""
     start = pd.to_datetime(start_date).date()
     end = pd.to_datetime(end_date).date()
-
-    keys = []
     cur = start
+    keys = []
     while cur <= end:
-        # Try monthly key first
         if cur.day == 1:
-            month_key = f"{table_name}:agg:month:{cur:%Y-%m}"
-            if cache_get(month_key):
-                keys.append(month_key)
-                cur += timedelta(days=32)
-                cur = cur.replace(day=1)
+            month_end = (cur.replace(day=28) + timedelta(days=4)).replace(day=1) - timedelta(days=1)
+            if month_end <= end:
+                keys.append(f"{table_name}:agg:month:{cur:%Y-%m}")
+                cur = month_end + timedelta(days=1)
                 continue
-        # Try weekly key
+        week_start = cur - timedelta(days=cur.weekday())
+        week_end = week_start + timedelta(days=6)
         iso_year, iso_week, _ = cur.isocalendar()
-        week_key = f"{table_name}:agg:week:{iso_year}-W{iso_week:02d}"
-        if cache_get(week_key):
-            keys.append(week_key)
-            cur += timedelta(days=7)
+        if cur == week_start and week_end <= end:
+            keys.append(f"{table_name}:agg:week:{iso_year}-W{iso_week:02d}")
+            cur = week_end + timedelta(days=1)
             continue
-        # Otherwise, use daily
         keys.append(f"{table_name}:agg:day:{cur:%Y-%m-%d}")
         cur += timedelta(days=1)
 
-    summary_total = {"total_fare": 0, "total_tkt_revenue": 0, "no_of_passengers": 0, "transactions": 0}
-    by_coach, by_station, by_corp, by_user = [], [], [], []
+    total = defaultdict(float)
+    by_coach_rows, by_station_rows, by_corp_rows, by_user_rows = [], [], [], []
 
-    for key in keys:
-        obj = cache_get(key) or {}
+    for k in keys:
+        obj = cache_get(k) or {}
         s = obj.get("summary", {})
-        summary_total["total_fare"] += s.get("total_fare", 0)
-        summary_total["total_tkt_revenue"] += s.get("total_tkt_revenue", 0)
-        summary_total["no_of_passengers"] += s.get("no_of_passengers", 0)
-        summary_total["transactions"] += s.get("transactions", 0)
-        by_coach.extend(obj.get("by_coach", []))
-        by_station.extend(obj.get("by_station", []))
-        by_corp.extend(obj.get("by_corporation", []))
-        by_user.extend(obj.get("by_user", []))
+        for key, val in s.items():
+            total[key] += val if isinstance(val, (int, float)) else 0
+        by_coach_rows.extend(obj.get("by_coach", []))
+        by_station_rows.extend(obj.get("by_station", []))
+        by_corp_rows.extend(obj.get("by_corporation", []))
+        by_user_rows.extend(obj.get("by_user", []))
 
     return {
-        "summary": summary_total,
-        "by_coach": _merge_group_list(by_coach, "coach_type_name"),
-        "by_station": _merge_group_list(by_station, "booking_from"),
-        "by_corporation": _merge_group_list(by_corp, "poc_corporation_name"),
-        "by_user": _merge_group_list(by_user, "user_name"),
+        "summary": dict(total),
+        "by_coach": _merge_group_list(by_coach_rows, "coach_type_name") if by_coach_rows else [],
+        "by_station": _merge_group_list(by_station_rows, "booking_from") if by_station_rows else [],
+        "by_corporation": _merge_group_list(by_corp_rows, "poc_corporation_name") if by_corp_rows else [],
+        "by_user": _merge_group_list(by_user_rows, "user_name") if by_user_rows else [],
         "used_keys": keys
     }
 
-# Public functions for each table
 def read_range_booking(start_date, end_date):
-    return _read_range_generic("booking", start_date, end_date)
+    return read_range("booking", start_date, end_date)
 
 def read_range_validator(start_date, end_date):
-    return _read_range_generic("validator", start_date, end_date)
+    return read_range("validator", start_date, end_date)
 
 def read_range_user(start_date, end_date):
-    return _read_range_generic("user", start_date, end_date)
+    return read_range("user", start_date, end_date)
+
+def safe_to_date(series):
+    return pd.to_datetime(series, errors="coerce", format="mixed").dt.date
+

@@ -6,10 +6,9 @@ import logging
 
 logger = logging.getLogger(__name__)
 
-# ------------------ PostgreSQL Connection ------------------
 
 def get_pg_connection():
-    """Return a psycopg2 PostgreSQL connection using environment variables."""
+    
     try:
         conn = psycopg2.connect(
             dbname=os.getenv('DB_NAME'),
@@ -23,7 +22,6 @@ def get_pg_connection():
         logger.error(f"🚨 PostgreSQL connection failed: {e}")
         raise
 
-# ------------------ Redis Timestamp Helpers ------------------
 
 def get_last_created_at_key(base_key):
     """Retrieve the last cached 'created_at' timestamp for incremental updates."""
@@ -31,7 +29,7 @@ def get_last_created_at_key(base_key):
         val = cache.get(f"{base_key}:last_created_at")
         if val:
             return pd.Timestamp(val)
-        return pd.Timestamp("2000-01-01")  # Default starting point
+        return pd.Timestamp("2000-01-01")
     except Exception as e:
         logger.error(f"❌ Failed to get last created_at key for {base_key}: {e}")
         return pd.Timestamp("2000-01-01")
