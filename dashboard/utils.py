@@ -1,210 +1,132 @@
+import os
+import math
+import logging
 import pandas as pd
 import orjson
 import lz4.frame
-import logging
+import psycopg2
 from django.core.cache import cache
-from datetime import timedelta
-from collections import defaultdict
 
+# Logging setup
+logging.basicConfig(level=logging.DEBUG)
 logger = logging.getLogger(__name__)
 
-def _compress(obj):
-    try:
-        return lz4.frame.compress(orjson.dumps(obj, default=str))
-    except Exception as e:
-        logger.error(f"❌ Compression failed: {e}")
-        raise
-
-def _decompress(blob):
-    try:
-        return orjson.loads(lz4.frame.decompress(blob))
-    except Exception as e:
-        logger.error(f"❌ Decompression failed: {e}")
-        return None
-
-def cache_set(key, value, timeout=None):
-    try:
-        cache.set(key, _compress(value), timeout=timeout)
-        logger.debug(f"✅ Cached key {key}")
-    except Exception as e:
-        logger.error(f"❌ Cache set failed for {key}: {e}")
-
-def cache_get(key):
-    blob = cache.get(key)
-    if not blob:
-        return None
-    return _decompress(blob)
-
-def chunk_and_cache_df(df, base_key, chunk_size=100000):
-    try:
-        cache.delete_pattern(f"{base_key}:chunk:*")
-
-        for col in df.select_dtypes(include=["datetime64[ns]", "datetime64[ns, UTC]"]).columns:
+# -------------------- Chunking Logic --------------------
+def chunk_and_cache_df(df, key_prefix, chunk_size=10000):
+    # Convert all datetime columns to ISO strings
+    for col in df.select_dtypes(include=["datetime64[ns]", "datetime64[ns, UTC]", "object"]):
+        if pd.api.types.is_datetime64_any_dtype(df[col]):
             df[col] = df[col].astype(str)
 
-        total_rows = len(df)
-        if total_rows == 0:
-            return
+    records = df.to_dict(orient='records')
+    total_records = len(records)
+    num_chunks = math.ceil(total_records / chunk_size)
 
-        num_chunks = (total_rows // chunk_size) + 1
-        for i in range(num_chunks):
-            chunk = df.iloc[i * chunk_size : (i + 1) * chunk_size]
-            if not chunk.empty:
-                cache_set(f"{base_key}:chunk:{i}", chunk.to_dict("records"))
+    for i in range(num_chunks):
+        chunk = records[i * chunk_size : (i + 1) * chunk_size]
 
-        cache_set(f"{base_key}:chunk_count", num_chunks)
-        logger.info(f"✅ Stored {num_chunks} chunks for key {base_key}")
-    except Exception as e:
-        logger.error(f"❌ Chunk and cache failed for {base_key}: {e}")
+        try:
+            json_bytes = orjson.dumps(chunk)
+            compressed = lz4.frame.compress(json_bytes)
+            cache.set(f"{key_prefix}_chunk_{i}", compressed, timeout=None)
+        except Exception as e:
+            logger.error(f"Chunk {i} failed to compress/save: {e}")
 
-def read_all_chunks(base_key):
-    """Read all DataFrame chunks back from Redis."""
-    chunk_count = cache_get(f"{base_key}:chunk_count")
-    if not chunk_count:
-        return []
-    all_data = []
+    cache.set(f"{key_prefix}_chunk_count", num_chunks, timeout=None)
+    logger.debug(f"Stored {key_prefix} in {num_chunks} chunks.")
+
+def read_all_chunks(key_prefix):
+    chunks = []
+    chunk_count = cache.get(f"{key_prefix}_chunk_count")
+
+    if isinstance(chunk_count, bytes):
+        chunk_count = int(chunk_count.decode())
+    
+    chunk_count = chunk_count or 0
     for i in range(chunk_count):
-        part = cache_get(f"{base_key}:chunk:{i}")
-        if part:
-            all_data.extend(part)
-    return all_data
-
-def _safe_sum(series):
-    """Safely sum a series even if it contains non-numeric data."""
-    return float(series.sum()) if pd.api.types.is_numeric_dtype(series) else 0.0
-
-def _make_summary(df):
-    """Adaptive summary generator — only uses available columns."""
-    summary = {"transactions": len(df)}
-    if "total_fare" in df:
-        summary["total_fare"] = _safe_sum(df["total_fare"])
-    if "total_tkt_revenue" in df:
-        summary["total_tkt_revenue"] = _safe_sum(df["total_tkt_revenue"])
-    if "no_of_passengers" in df:
-        summary["no_of_passengers"] = int(df["no_of_passengers"].sum())
-    if "nrc_tkt_rev" in df:
-        summary["nrc_tkt_rev"] = _safe_sum(df["nrc_tkt_rev"])
-    if "gsd_tkt_rev" in df:
-        summary["gsd_tkt_rev"] = _safe_sum(df["gsd_tkt_rev"])
-    if "icrc_tkt_rev" in df:
-        summary["icrc_tkt_rev"] = _safe_sum(df["icrc_tkt_rev"])
-    return summary
-
-def _compute_dimensions(df):
-    """Adaptive grouped aggregates based on existing columns."""
-    dims = {}
-    if "coach_type_name" in df and "total_fare" in df:
-        dims["by_coach"] = (
-            df.groupby("coach_type_name")["total_fare"].sum().reset_index().to_dict("records")
-        )
-    if "booking_from" in df and "total_fare" in df:
-        dims["by_station"] = (
-            df.groupby("booking_from")["total_fare"].sum().reset_index().to_dict("records")
-        )
-    if "poc_corporation_name" in df and "total_fare" in df:
-        dims["by_corporation"] = (
-            df.groupby("poc_corporation_name")["total_fare"].sum().reset_index().to_dict("records")
-        )
-    if "user_name" in df and "total_fare" in df:
-        dims["by_user"] = (
-            df.groupby("user_name")["total_fare"].sum().reset_index().to_dict("records")
-        )
-    if "booking_date" in df and "total_fare" in df:
-        daily = df.groupby("booking_date")["total_fare"].sum().reset_index()
-        dims["daily_trend"] = daily.to_dict("records")
-    return dims
-
-def cache_aggregations(df, table_name="booking", date_col="booking_date"):
-
-    if date_col not in df.columns:
-        for fallback in ["created_at", "travel_date", "date", "booking_datetime"]:
-            if fallback in df.columns:
-                date_col = fallback
-                break
+        compressed = cache.get(f"{key_prefix}_chunk_{i}")
+        if compressed:
+            try:
+                json_bytes = lz4.frame.decompress(compressed)
+                chunk = orjson.loads(json_bytes)
+                chunks.extend(chunk)
+            except Exception as e:
+                logger.error(f"Failed to load chunk {key_prefix}_chunk_{i}: {e}")
         else:
-            logger.warning(f"⚠️ No valid date column found in {table_name}, skipping aggregation.")
-            return
-        
-    if df.empty:
-        logger.warning(f"No data found for table {table_name} — skipping aggregation.")
-        return
+            logger.warning(f"Missing chunk {key_prefix}_chunk_{i}")
+    return chunks
 
-    df[date_col] = pd.to_datetime(df[date_col], errors="coerce")
-    df = df.dropna(subset=[date_col])
+def get_booking_data():
+    return read_all_chunks("dashboard_data")
 
-    df["year"] = df[date_col].dt.year
-    df["month"] = df[date_col].dt.strftime("%Y-%m")
-    df["week"] = df[date_col].dt.strftime("%Y-W%U")
-    df["day"] = df[date_col].dt.strftime("%Y-%m-%d")
+def get_validator_data():
+    return read_all_chunks("validator_data")
 
-    for period, group_col in [("day", "day"), ("week", "week"), ("month", "month"), ("year", "year")]:
-        for value, sub in df.groupby(group_col):
-            key = f"{table_name}:agg:{period}:{value}"
-            cache_set(key, {"summary": _make_summary(sub), **_compute_dimensions(sub)})
+def get_user_data():
+    return read_all_chunks("user_data")
 
-    logger.info(f"✅ Cached daily, weekly, monthly, yearly aggregations for {table_name}")
+# -------------------- Main Function --------------------
+def get_cached_dashboard_data():
+    # Try reading from cache
+    data = read_all_chunks("dashboard_data")
+    if data:
+        print("Fetched dashboard data from cache.")
+        return data
 
-def _merge_group_list(rows, key_name):
-    agg = defaultdict(float)
-    for r in rows:
-        agg[r[key_name]] += r["total_fare"]
-    return [{key_name: k, "total_fare": v} for k, v in agg.items()]
+    print("Cache is empty. Fetching data from DB...")
 
+    try:
+        # PostgreSQL Connection
+        connection = psycopg2.connect(
+            dbname=os.getenv('DB_NAME'),
+            user=os.getenv('DB_USER'),
+            password=os.getenv('DB_PASSWORD'),
+            host=os.getenv('DB_HOST'),
+            port=os.getenv('DB_PORT')
+        )
+        cursor = connection.cursor()
 
-def read_range(table_name, start_date, end_date):
-    """Combine pre-aggregated data between two dates."""
-    start = pd.to_datetime(start_date).date()
-    end = pd.to_datetime(end_date).date()
-    cur = start
-    keys = []
-    while cur <= end:
-        if cur.day == 1:
-            month_end = (cur.replace(day=28) + timedelta(days=4)).replace(day=1) - timedelta(days=1)
-            if month_end <= end:
-                keys.append(f"{table_name}:agg:month:{cur:%Y-%m}")
-                cur = month_end + timedelta(days=1)
-                continue
-        week_start = cur - timedelta(days=cur.weekday())
-        week_end = week_start + timedelta(days=6)
-        iso_year, iso_week, _ = cur.isocalendar()
-        if cur == week_start and week_end <= end:
-            keys.append(f"{table_name}:agg:week:{iso_year}-W{iso_week:02d}")
-            cur = week_end + timedelta(days=1)
-            continue
-        keys.append(f"{table_name}:agg:day:{cur:%Y-%m-%d}")
-        cur += timedelta(days=1)
+        # 1️⃣ Booking Table
+        query = """
+            SELECT id, booking_date, booking_from, booking_id, booking_to, coach_type_name, fultterwave_charge, gsd_cov_fee, 
+            gsd_tkt_rev, icrc_tkt_rev, insurance, medical, nrc_cov_fee, nrc_tkt_rev, no_of_passengers, pnr_number, seat_type, 
+            stamp_duty, booking_status, total_cov_fee, total_fare, total_tkt_revenue, train_name, travel_date, type, user_name,
+            user_type, created_at, route_name, poc_corporation_name 
+            FROM booking ORDER BY booking_date;
+        """
+        cursor.execute(query)
+        columns = [desc[0] for desc in cursor.description]
+        df = pd.DataFrame(cursor.fetchall(), columns=columns)
+        chunk_and_cache_df(df, "dashboard_data")
 
-    total = defaultdict(float)
-    by_coach_rows, by_station_rows, by_corp_rows, by_user_rows = [], [], [], []
+        # 2️⃣ Validator Table
+        validator_query = """
+            SELECT id, status, booking_id, validated_at, created_at, updated_at 
+            FROM booking_verification_details ORDER BY created_at;
+        """
+        cursor.execute(validator_query)
+        validator_columns = [desc[0] for desc in cursor.description]
+        validator_df = pd.DataFrame(cursor.fetchall(), columns=validator_columns)
+        chunk_and_cache_df(validator_df, "validator_data")
 
-    for k in keys:
-        obj = cache_get(k) or {}
-        s = obj.get("summary", {})
-        for key, val in s.items():
-            total[key] += val if isinstance(val, (int, float)) else 0
-        by_coach_rows.extend(obj.get("by_coach", []))
-        by_station_rows.extend(obj.get("by_station", []))
-        by_corp_rows.extend(obj.get("by_corporation", []))
-        by_user_rows.extend(obj.get("by_user", []))
+        # 3️⃣ User Table
+        user_query = """
+            SELECT id, booking_id, coach_name, passenger_identification_number, passenger_contact, passenger_email, 
+            passenger_name, passenger_type, seat_number, seat_type, created_at, updated_at 
+            FROM booking_details ORDER BY created_at;
+        """
+        cursor.execute(user_query)
+        user_columns = [desc[0] for desc in cursor.description]
+        user_df = pd.DataFrame(cursor.fetchall(), columns=user_columns)
+        chunk_and_cache_df(user_df, "user_data")
 
-    return {
-        "summary": dict(total),
-        "by_coach": _merge_group_list(by_coach_rows, "coach_type_name") if by_coach_rows else [],
-        "by_station": _merge_group_list(by_station_rows, "booking_from") if by_station_rows else [],
-        "by_corporation": _merge_group_list(by_corp_rows, "poc_corporation_name") if by_corp_rows else [],
-        "by_user": _merge_group_list(by_user_rows, "user_name") if by_user_rows else [],
-        "used_keys": keys
-    }
+        cursor.close()
+        connection.close()
+        print("DB connection closed. All data cached in chunks.")
 
-def read_range_booking(start_date, end_date):
-    return read_range("booking", start_date, end_date)
+        # Return booking data for immediate use
+        return df.to_dict(orient='records')
 
-def read_range_validator(start_date, end_date):
-    return read_range("validator", start_date, end_date)
-
-def read_range_user(start_date, end_date):
-    return read_range("user", start_date, end_date)
-
-def safe_to_date(series):
-    return pd.to_datetime(series, errors="coerce", format="mixed").dt.date
-
+    except Exception as e:
+        logger.error(f"DB Fetch Error: {e}")
+        return "Failed to fetch data."
