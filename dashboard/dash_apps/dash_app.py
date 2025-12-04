@@ -1,5 +1,5 @@
 import os
-import time
+import time,datetime
 import dash
 from dash import html, dcc, callback, Output, Input, dash_table, State
 from dash import dash_table
@@ -13,7 +13,7 @@ import pandas as pd
 import numpy as np
 import plotly.express as px
 import plotly.graph_objects as go
-from datetime import datetime
+from datetime import datetime, date
 # from utils import get_booking_data #get_validator_data, get_user_data
 
 # from dashboard.models import dashboard
@@ -222,6 +222,27 @@ def toggle_offcanvas(n1, is_open):
         return not is_open
     return is_open
 
+#def parse_date(date_value):
+    #if isinstance(date_value, datetime):
+        #return date_value.date()
+
+    #if isinstance(date_value, date):
+        #return date_value
+
+    #if isinstance(date_value, str):
+        # Try YYYY-MM-DD first (Dash default)
+        #try:
+           #return datetime.strptime(date_value, "%Y-%m-%d").date()
+        #except:
+            #pass
+
+        # Try DD-MM-YYYY (your custom input)
+        #try:
+            #return datetime.strptime(date_value, "%d-%m-%Y").date()
+        #except:
+           #pass
+
+    #return None
 
 # Callbacks to make the dashboard interactive
 @dashboard_app.callback(  
@@ -250,7 +271,6 @@ def toggle_offcanvas(n1, is_open):
     Input("clear-filters", "n_clicks"),
 )
 
-
 def update_dashboard(date_filter, start_date, end_date, station, route,  coach, username, pnr, clear_clicks):
     try:
         booking_data = get_booking_data()
@@ -259,6 +279,7 @@ def update_dashboard(date_filter, start_date, end_date, station, route,  coach, 
         validator_dff = pd.DataFrame(validator_data)
 
         dff.head()
+        print(dff.dtypes)
         print("The length of the dataframe is:", len(dff))
         print(f"Today date:{date_filter} (Type: {type(date_filter)})")
         print(f"Start Date:{start_date} (Type: {type(start_date)})")
@@ -277,8 +298,8 @@ def update_dashboard(date_filter, start_date, end_date, station, route,  coach, 
         print(f"End Date after filtering:{end_date} (Type: {type(end_date)})")
 
         # Convert 'booking_date' to native date
-        dff["booking_date"] = pd.to_datetime(dff["booking_date"]).dt.date
-        validator_dff["created_at"] = pd.to_datetime(validator_dff["created_at"]).dt.date
+        dff["booking_date"] = pd.to_datetime(dff["booking_date"],errors="coerce",format="mixed").dt.date
+        validator_dff["created_at"] = pd.to_datetime(validator_dff["created_at"],errors="coerce",format="mixed").dt.date
 
         if "today" in date_filter:
             today_date = datetime.today().date()

@@ -6,6 +6,7 @@ import orjson
 import lz4.frame
 import psycopg2
 from django.core.cache import cache
+from datetime import datetime, date
 
 # Logging setup
 logging.basicConfig(level=logging.DEBUG)
@@ -13,10 +14,11 @@ logger = logging.getLogger(__name__)
 
 # -------------------- Chunking Logic --------------------
 def chunk_and_cache_df(df, key_prefix, chunk_size=10000):
-    # Convert all datetime columns to ISO strings
-    for col in df.select_dtypes(include=["datetime64[ns]", "datetime64[ns, UTC]", "object"]):
-        if pd.api.types.is_datetime64_any_dtype(df[col]):
-            df[col] = df[col].astype(str)
+
+    # 🔥 Convert all timestamp/datetime objects to ISO strings
+    df = df.applymap(
+        lambda x: x.isoformat() if isinstance(x, (pd.Timestamp, datetime)) else x
+    )
 
     records = df.to_dict(orient='records')
     total_records = len(records)

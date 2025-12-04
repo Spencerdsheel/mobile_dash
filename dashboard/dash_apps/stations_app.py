@@ -422,7 +422,7 @@ def update_station(date_filter, start_date, end_date, station, route, coach, use
         print(f"End Date after filtering:{end_date} (Type: {type(end_date)})")
 
         # Convert 'booking_date' to native date
-        dff["booking_date"] = pd.to_datetime(dff["booking_date"]).dt.date
+        dff["booking_date"] = pd.to_datetime(dff["booking_date"],errors="coerce",format="mixed").dt.date
 
         if "today" in date_filter:
             today_date = datetime.today().date()
